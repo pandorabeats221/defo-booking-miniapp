@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Defo Booking Admin</title>
+    
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--tg-theme-bg-color, #0A0A0A);
+            color: var(--tg-theme-text-color, #E8E8E8);
+            padding: 16px;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #333;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .user-info {
+            font-size: 14px;
+            color: #999;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: #141414;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #D4AF37;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+        }
+        
+        .tab {
+            padding: 10px 16px;
+            background: #141414;
+            border: 1px solid #333;
+            border-radius: 8px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            background: #D4AF37;
+            color: #000;
+            border-color: #D4AF37;
+        }
+        
+        .booking-card {
+            background: #141414;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        
+        .booking-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .booking-id {
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .status {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status.confirmed {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+        }
+        
+        .status.pending {
+            background: rgba(255, 152, 0, 0.2);
+            color: #FF9800;
+        }
+        
+        .info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+        
+        .info-label {
+            color: #999;
+            font-size: 11px;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .btn-confirm {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-cancel {
+            background: #F44336;
+            color: white;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🍽️ Defo Booking</h1>
+        <div class="user-info" id="userName">Загрузка...</div>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-label">Сегодня</div>
+            <div class="stat-value" id="todayCount">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Ожидают</div>
+            <div class="stat-value" id="awaitingCount">0</div>
+        </div>
+    </div>
+    
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('today')">Сегодня</div>
+        <div class="tab" onclick="switchTab('awaiting')">Ожидают</div>
+    </div>
+    
+    <div id="bookingList">
+        <div class="loading">Загрузка бронирований...</div>
+    </div>
+    
+    <script>
+        const API_URL = 'https://defo-booking-api.onrender.com/api';
+        let tg = window.Telegram.WebApp;
+        let currentTab = 'today';
+        
+        tg.ready();
+        tg.expand();
+        
+        document.getElementById('userName').textContent = 
+            tg.initDataUnsafe?.user?.first_name || 'Админ';
+        
+        loadBookings('today');
+        
+        async function loadBookings(tab) {
+            currentTab = tab;
+            const listEl = document.getElementById('bookingList');
+            listEl.innerHTML = '<div class="loading">Загрузка...</div>';
+            
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                let url = `${API_URL}/bookings?date=${today}`;
+                
+                if (tab === 'awaiting') {
+                    url += '&status=waiting_confirmation';
+                }
+                
+                const response = await fetch(url);
+                const bookings = await response.json();
+                
+                updateStats(bookings);
+                renderBookings(bookings);
+                
+            } catch (error) {
+                listEl.innerHTML = '<div class="loading">Ошибка загрузки</div>';
+            }
+        }
+        
+        function updateStats(bookings) {
+            document.getElementById('todayCount').textContent = bookings.length;
+            document.getElementById('awaitingCount').textContent = 
+                bookings.filter(b => b.status === 'waiting_confirmation').length;
+        }
+        
+        function renderBookings(bookings) {
+            const listEl = document.getElementById('bookingList');
+            
+            if (bookings.length === 0) {
+                listEl.innerHTML = '<div class="loading">Нет бронирований</div>';
+                return;
+            }
+            
+            listEl.innerHTML = bookings.map(b => `
+                <div class="booking-card">
+                    <div class="booking-header">
+                        <div class="booking-id">Бронь #${b.id}</div>
+                        <div class="status ${b.status}">${getStatus(b.status)}</div>
+                    </div>
+                    <div class="info">
+                        <div>
+                            <div class="info-label">Стол</div>
+                            <div>🪑 ${b.table_number}</div>
+                        </div>
+                        <div>
+                            <div class="info-label">Время</div>
+                            <div>⏰ ${b.start_time.substring(0,5)}</div>
+                        </div>
+                        <div>
+                            <div class="info-label">Клиент</div>
+                            <div>👤 ${b.customer_name}</div>
+                        </div>
+                        <div>
+                            <div class="info-label">Телефон</div>
+                            <div>📞 ${b.customer_phone}</div>
+                        </div>
+                    </div>
+                    ${renderActions(b)}
+                </div>
+            `).join('');
+        }
+        
+        function renderActions(b) {
+            if (b.status === 'waiting_confirmation') {
+                return `
+                    <div class="actions">
+                        <button class="btn-confirm" onclick="confirm(${b.id})">✅ Пришёл</button>
+                        <button class="btn-cancel" onclick="noShow(${b.id})">❌ Не пришёл</button>
+                    </div>
+                `;
+            }
+            return '';
+        }
+        
+        function getStatus(s) {
+            return {
+                'pending': 'Ожидает',
+                'waiting_confirmation': 'Подтвердить',
+                'confirmed': 'Подтверждено',
+                'cancelled': 'Отменено'
+            }[s] || s;
+        }
+        
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            loadBookings(tab);
+        }
+        
+        async function confirm(id) {
+            try {
+                await fetch(`${API_URL}/bookings/${id}/confirm-arrival`, {
+                    method: 'PUT'
+                });
+                tg.showAlert('✅ Подтверждено!');
+                loadBookings(currentTab);
+            } catch (e) {
+                tg.showAlert('❌ Ошибка');
+            }
+        }
+        
+        async function noShow(id) {
+            try {
+                await fetch(`${API_URL}/bookings/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        status: 'cancelled',
+                        cancellation_reason: 'No-show'
+                    })
+                });
+                tg.showAlert('⚫ No-show');
+                loadBookings(currentTab);
+            } catch (e) {
+                tg.showAlert('❌ Ошибка');
+            }
+        }
+        
+        setInterval(() => loadBookings(currentTab), 30000);
+    </script>
+</body>
+</html>
