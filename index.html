@@ -1125,7 +1125,7 @@
                 // Session timer для confirmed "По факту"
                 if (booking.status === 'confirmed' && !booking.end_time) {
                     timerHtml = `
-                        <div class="session-timer" data-start="${booking.booking_date} ${booking.start_time}" data-booking-id="${booking.id}">
+                        <div class="session-timer" data-start="${booking.booking_date.substring(0, 5)} ${booking.start_time}" data-booking-id="${booking.id}">
                             <span class="session-timer-label">🕐 Гости сидят уже</span>
                             <span class="session-timer-value">0ч 0мин</span>
                         </div>
