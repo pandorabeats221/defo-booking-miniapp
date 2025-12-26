@@ -1024,9 +1024,11 @@
                 // Отображение броней
                 renderBookings(filteredBookings);
                 
-                // Запуск таймеров
+                // Запуск таймеров (с задержкой для DOM)
                 startCountdownTimers();
-                startSessionTimers();
+                setTimeout(() => {
+                    startSessionTimers();
+                }, 100);
                 
             } catch (error) {
                 console.error('Ошибка загрузки:', error);
@@ -1125,7 +1127,7 @@
                     timerHtml = `
                         <div class="session-timer" data-start="${booking.booking_date} ${booking.start_time}" data-booking-id="${booking.id}">
                             <span class="session-timer-label">🕐 Гости сидят уже</span>
-                            <span class="session-timer-value">--:--</span>
+                            <span class="session-timer-value">0ч 0мин</span>
                         </div>
                     `;
                 }
@@ -1326,17 +1328,23 @@
         }
         
         // ============================================
-        // SESSION TIMERS (CONFIRMED "ПО ФАКТУ")
+        // SESSION TIMERS (CONFIRMED "ПО ФАКТУ") - ИСПРАВЛЕНО!
         // ============================================
         
         function startSessionTimers() {
+            console.log('🕐 Запуск session timers...');
+            
             // Очистка старых интервалов
             Object.values(sessionTimerIntervals).forEach(interval => clearInterval(interval));
             sessionTimerIntervals = {};
             
-            const timers = document.querySelectorAll('.session-timer');
+            const timers = document.querySelectorAll('.session-timer[data-start]');
+            console.log(`Найдено ${timers.length} session timers`);
             
             timers.forEach(timer => {
+                const startStr = timer.dataset.start;
+                console.log(`Обработка таймера для брони ${timer.dataset.bookingId}, start: ${startStr}`);
+                
                 updateSessionTimer(timer);
                 
                 const bookingId = timer.dataset.bookingId;
@@ -1353,42 +1361,48 @@
         }
         
         function updateSessionTimer(timer) {
-    try {
-        // Получаем дату и время из data-атрибута
-        const startStr = timer.dataset.start;
-        
-        // Разбиваем на дату и время
-        const [dateStr, timeStr] = startStr.split(' ');
-        const [year, month, day] = dateStr.split('-').map(Number);
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        
-        // Создаём дату явно
-        const startDateTime = new Date(year, month - 1, day, hours, minutes, 0);
-        
-        // Текущее время по MSK
-        const now = new Date();
-        const mskOffset = 3 * 60;
-        const nowMSK = new Date(now.getTime() + mskOffset * 60 * 1000);
-        
-        // Разница во времени
-        const diff = nowMSK - startDateTime;
-        
-        if (diff < 0) {
-            timer.querySelector('.session-timer-value').textContent = '0ч 0мин';
-            return;
+            try {
+                const startStr = timer.dataset.start;
+                
+                if (!startStr || !startStr.includes(' ')) {
+                    console.error('Неверный формат data-start:', startStr);
+                    timer.querySelector('.session-timer-value').textContent = 'Ошибка';
+                    return;
+                }
+                
+                // Разбиваем на дату и время: "2025-12-27 02:05"
+                const [dateStr, timeStr] = startStr.split(' ');
+                const [year, month, day] = dateStr.split('-').map(Number);
+                const [hours, minutes] = timeStr.substring(0, 5).split(':').map(Number);
+                
+                // Создаём дату брони в MSK (как UTC+3)
+                // Время в БД УЖЕ в MSK, поэтому создаём как обычную локальную дату
+                const startDateTime = new Date(year, month - 1, day, hours, minutes, 0);
+                
+                // Текущее время (локальное)
+                const now = new Date();
+                
+                // Разница во времени
+                const diff = now - startDateTime;
+                
+                console.log(`Таймер брони ${timer.dataset.bookingId}: start=${startDateTime.toISOString()}, now=${now.toISOString()}, diff=${diff}ms`);
+                
+                if (diff < 0) {
+                    timer.querySelector('.session-timer-value').textContent = '0ч 0мин';
+                    return;
+                }
+                
+                const totalMinutes = Math.floor(diff / (1000 * 60));
+                const hoursDisplay = Math.floor(totalMinutes / 60);
+                const minutesDisplay = totalMinutes % 60;
+                
+                timer.querySelector('.session-timer-value').textContent = `${hoursDisplay}ч ${minutesDisplay}мин`;
+                
+            } catch (error) {
+                console.error('Ошибка updateSessionTimer:', error, 'data-start:', timer.dataset.start);
+                timer.querySelector('.session-timer-value').textContent = 'Ошибка';
+            }
         }
-        
-        const totalMinutes = Math.floor(diff / (1000 * 60));
-        const hoursDisplay = Math.floor(totalMinutes / 60);
-        const minutesDisplay = totalMinutes % 60;
-        
-        timer.querySelector('.session-timer-value').textContent = `${hoursDisplay}ч ${minutesDisplay}мин`;
-        
-    } catch (error) {
-        console.error('Ошибка updateSessionTimer:', error);
-        timer.querySelector('.session-timer-value').textContent = 'Ошибка';
-    }
-}
         
         // ============================================
         // TAB SWITCHING
@@ -1416,6 +1430,7 @@
             currentFilter.table = tableNumber;
             applyFilters();
             renderBookings(filteredBookings);
+            startSessionTimers(); // Перезапуск таймеров после фильтрации
         }
         
         function handleSearch() {
@@ -1423,6 +1438,7 @@
             currentFilter.search = searchValue;
             applyFilters();
             renderBookings(filteredBookings);
+            startSessionTimers(); // Перезапуск таймеров после поиска
         }
         
         // ============================================
@@ -1616,7 +1632,7 @@
             document.getElementById('createModal').classList.add('show');
         }
         
-        function closeCreateModal() {
+                function closeCreateModal() {
             tg.HapticFeedback.impactOccurred('light');
             document.getElementById('createModal').classList.remove('show');
             
