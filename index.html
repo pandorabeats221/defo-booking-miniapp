@@ -31,6 +31,7 @@
             --warning-color: #FF9800;
             --error-color: #F44336;
             --pending-color: #FFC107;
+            --completed-color: #4CAF50;
         }
         
         body {
@@ -306,6 +307,10 @@
             background: var(--success-color);
         }
         
+        .booking-card.status-completed::before {
+            background: var(--completed-color);
+        }
+        
         .booking-card.status-cancelled::before {
             background: var(--error-color);
         }
@@ -350,6 +355,11 @@
         .status-badge.confirmed {
             background: rgba(76, 175, 80, 0.2);
             color: var(--success-color);
+        }
+        
+        .status-badge.completed {
+            background: rgba(76, 175, 80, 0.3);
+            color: var(--completed-color);
         }
         
         .status-badge.cancelled {
@@ -431,6 +441,32 @@
             25%, 75% { opacity: 0.3; }
         }
         
+        /* Session Timer (NEW) */
+        .session-timer {
+            background: linear-gradient(90deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .session-timer-label {
+            font-size: 11px;
+            color: var(--success-color);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .session-timer-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--success-color);
+            font-variant-numeric: tabular-nums;
+        }
+        
         /* Progress Bar */
         .progress-bar {
             height: 4px;
@@ -475,6 +511,11 @@
         
         .btn-confirm {
             background: var(--success-color);
+            color: white;
+        }
+        
+        .btn-complete {
+            background: var(--completed-color);
             color: white;
         }
         
@@ -889,6 +930,7 @@
         let allBookings = [];
         let filteredBookings = [];
         let currentFilter = { table: 'all', search: '' };
+        let sessionTimerIntervals = {};
         
         // Инициализация
         tg.ready();
@@ -984,10 +1026,11 @@
                 
                 // Запуск таймеров
                 startCountdownTimers();
+                startSessionTimers();
                 
             } catch (error) {
                 console.error('Ошибка загрузки:', error);
-                                listEl.innerHTML = `
+                listEl.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-icon">⚠️</div>
                         <div class="empty-title">Ошибка загрузки</div>
@@ -1018,7 +1061,7 @@
         }
         
         function updateStats(bookings) {
-            const today = bookings.filter(b => b.status !== 'cancelled');
+            const today = bookings.filter(b => b.status !== 'cancelled' && b.status !== 'completed');
             const awaiting = bookings.filter(b => b.status === 'waiting_confirmation');
             const confirmed = bookings.filter(b => b.status === 'confirmed');
             const cancelled = bookings.filter(b => b.status === 'cancelled');
@@ -1066,6 +1109,8 @@
                 const statusClass = booking.status;
                 
                 let timerHtml = '';
+                
+                // Countdown для waiting_confirmation
                 if (booking.status === 'waiting_confirmation' && booking.confirmation_deadline) {
                     timerHtml = `
                         <div class="countdown-timer" data-deadline="${booking.confirmation_deadline}" data-booking-id="${booking.id}">
@@ -1075,7 +1120,19 @@
                     `;
                 }
                 
+                // Session timer для confirmed "По факту"
+                if (booking.status === 'confirmed' && !booking.end_time) {
+                    timerHtml = `
+                        <div class="session-timer" data-start="${booking.booking_date}T${booking.start_time}" data-booking-id="${booking.id}">
+                            <span class="session-timer-label">🕐 Гости сидят уже</span>
+                            <span class="session-timer-value">--:--</span>
+                        </div>
+                    `;
+                }
+                
                 let progressHtml = '';
+                
+                // Progress bar для confirmed с end_time
                 if (booking.status === 'confirmed' && booking.end_time) {
                     const now = new Date();
                     const start = new Date(`${booking.booking_date}T${booking.start_time}`);
@@ -1094,6 +1151,27 @@
                     }
                 }
                 
+                // Info для completed
+                let completedInfoHtml = '';
+                if (booking.status === 'completed' && booking.actual_end_time) {
+                    const startTime = booking.start_time.substring(0, 5);
+                    const actualEndTime = booking.actual_end_time.substring(0, 5);
+                    
+                    // Вычисление длительности
+                    const [startH, startM] = startTime.split(':').map(Number);
+                    const [endH, endM] = actualEndTime.split(':').map(Number);
+                    const durationMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+                    const hours = Math.floor(durationMinutes / 60);
+                    const minutes = durationMinutes % 60;
+                    
+                    completedInfoHtml = `
+                        <div class="session-timer">
+                            <span class="session-timer-label">⏱️ Длительность визита</span>
+                            <span class="session-timer-value">${hours}ч ${minutes}мин</span>
+                        </div>
+                    `;
+                }
+                
                 return `
                     <div class="booking-card status-${statusClass}">
                         <div class="booking-header">
@@ -1102,6 +1180,7 @@
                         </div>
                         ${timerHtml}
                         ${progressHtml}
+                        ${completedInfoHtml}
                         <div class="booking-info">
                             <div class="info-item">
                                 <div class="info-label">Стол</div>
@@ -1114,7 +1193,7 @@
                                 <div class="info-label">Время</div>
                                 <div class="info-value">
                                     <span class="info-icon">⏰</span>
-                                    ${booking.start_time.substring(0, 5)} - ${endTime}
+                                    ${booking.start_time.substring(0, 5)} - ${booking.status === 'completed' && booking.actual_end_time ? booking.actual_end_time.substring(0, 5) : endTime}
                                 </div>
                             </div>
                             <div class="info-item">
@@ -1170,14 +1249,22 @@
             } else if (booking.status === 'confirmed') {
                 return `
                     <div class="booking-actions">
-                        <button class="btn btn-details" onclick="viewDetails(${booking.id})">
-                            📋 Детали
+                        <button class="btn btn-complete" onclick="completeBooking(${booking.id})">
+                            ✅ Завершить
                         </button>
                         <button class="btn btn-edit" onclick="openEditModal(${booking.id})">
                             ✏️ Изменить
                         </button>
                         <button class="btn btn-cancel" onclick="cancelBooking(${booking.id})">
                             ❌ Отменить
+                        </button>
+                    </div>
+                `;
+            } else if (booking.status === 'completed') {
+                return `
+                    <div class="booking-actions">
+                        <button class="btn btn-details" onclick="viewDetails(${booking.id})">
+                            📋 Детали
                         </button>
                     </div>
                 `;
@@ -1190,11 +1277,16 @@
                 'pending': 'Ожидает',
                 'waiting_confirmation': 'Подтвердить приход',
                 'confirmed': 'Подтверждено',
+                'completed': 'Завершено',
                 'cancelled': 'Отменено',
                 'no_show': 'Не пришёл'
             };
             return texts[status] || status;
         }
+        
+        // ============================================
+        // COUNTDOWN TIMERS (WAITING_CONFIRMATION)
+        // ============================================
         
         function startCountdownTimers() {
             const timers = document.querySelectorAll('.countdown-timer');
@@ -1204,7 +1296,8 @@
             });
             
             setInterval(() => {
-                timers.forEach(timer => {
+                const activeTimers = document.querySelectorAll('.countdown-timer');
+                activeTimers.forEach(timer => {
                     updateCountdown(timer);
                 });
             }, 1000);
@@ -1232,6 +1325,53 @@
             }
         }
         
+        // ============================================
+        // SESSION TIMERS (CONFIRMED "ПО ФАКТУ")
+        // ============================================
+        
+        function startSessionTimers() {
+            // Очистка старых интервалов
+            Object.values(sessionTimerIntervals).forEach(interval => clearInterval(interval));
+            sessionTimerIntervals = {};
+            
+            const timers = document.querySelectorAll('.session-timer');
+            
+            timers.forEach(timer => {
+                updateSessionTimer(timer);
+                
+                const bookingId = timer.dataset.bookingId;
+                sessionTimerIntervals[bookingId] = setInterval(() => {
+                    const activeTimer = document.querySelector(`.session-timer[data-booking-id="${bookingId}"]`);
+                    if (activeTimer) {
+                        updateSessionTimer(activeTimer);
+                    } else {
+                        clearInterval(sessionTimerIntervals[bookingId]);
+                        delete sessionTimerIntervals[bookingId];
+                    }
+                }, 60000); // Обновление каждую минуту
+            });
+        }
+        
+        function updateSessionTimer(timer) {
+            const startDateTime = new Date(timer.dataset.start);
+            const now = new Date();
+            const diff = now - startDateTime;
+            
+            if (diff < 0) {
+                timer.querySelector('.session-timer-value').textContent = '0ч 0мин';
+                return;
+            }
+            
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            
+            timer.querySelector('.session-timer-value').textContent = `${hours}ч ${minutes}мин`;
+        }
+        
+        // ============================================
+        // TAB SWITCHING
+        // ============================================
+        
         function switchTab(tab) {
             tg.HapticFeedback.selectionChanged();
             
@@ -1240,6 +1380,10 @@
             
             loadBookings(tab);
         }
+        
+        // ============================================
+        // FILTER FUNCTIONS
+        // ============================================
         
         function filterByTable(tableNumber) {
             tg.HapticFeedback.selectionChanged();
@@ -1258,6 +1402,10 @@
             applyFilters();
             renderBookings(filteredBookings);
         }
+        
+        // ============================================
+        // BOOKING ACTIONS
+        // ============================================
         
         async function confirmBooking(id) {
             tg.HapticFeedback.impactOccurred('medium');
@@ -1301,6 +1449,32 @@
                 tg.HapticFeedback.notificationOccurred('error');
                 tg.showAlert('❌ Ошибка подтверждения');
             }
+        }
+        
+        async function completeBooking(id) {
+            tg.HapticFeedback.impactOccurred('medium');
+            
+            tg.showConfirm('Завершить это бронирование?', async (confirmed) => {
+                if (!confirmed) return;
+                
+                try {
+                    const response = await fetch(`${API_URL}/bookings/${id}/complete`, {
+                        method: 'PUT'
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        const duration = result.duration;
+                        
+                        tg.HapticFeedback.notificationOccurred('success');
+                        tg.showAlert(`✅ Бронь завершена!\n\nДлительность: ${duration.hours}ч ${duration.minutes}мин`);
+                        loadBookings(currentTab);
+                    }
+                } catch (error) {
+                    tg.HapticFeedback.notificationOccurred('error');
+                    tg.showAlert('❌ Ошибка завершения');
+                }
+            });
         }
         
         async function cancelBooking(id) {
@@ -1362,13 +1536,14 @@
             if (!booking) return;
             
             const endTime = booking.end_time ? booking.end_time.substring(0, 5) : 'По факту';
+            const actualEndTime = booking.actual_end_time ? booking.actual_end_time.substring(0, 5) : null;
             const date = new Date(booking.booking_date).toLocaleDateString('ru-RU');
             
-            const message = `
+            let message = `
 📋 Бронь #${booking.id}
 
 📅 Дата: ${date}
-⏰ Время: ${booking.start_time.substring(0, 5)} - ${endTime}
+⏰ Время: ${booking.start_time.substring(0, 5)} - ${actualEndTime || endTime}
 🪑 Стол: ${booking.table_number} (${booking.hall_name})
 👤 Клиент: ${booking.customer_name}
 📞 Телефон: ${booking.customer_phone}
@@ -1376,8 +1551,23 @@
 📊 Статус: ${getStatusText(booking.status)}
             `.trim();
             
+            if (booking.status === 'completed' && booking.actual_end_time) {
+                const startTime = booking.start_time.substring(0, 5);
+                const [startH, startM] = startTime.split(':').map(Number);
+                const [endH, endM] = actualEndTime.split(':').map(Number);
+                const durationMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+                const hours = Math.floor(durationMinutes / 60);
+                const minutes = durationMinutes % 60;
+                
+                message += `\n⏱️ Длительность: ${hours}ч ${minutes}мин`;
+            }
+            
             tg.showAlert(message);
         }
+        
+        // ============================================
+        // CREATE BOOKING MODAL
+        // ============================================
         
         function openCreateModal() {
             tg.HapticFeedback.impactOccurred('medium');
@@ -1479,6 +1669,10 @@
                 tg.showAlert('❌ Ошибка создания бронирования');
             }
         }
+        
+        // ============================================
+        // EDIT BOOKING MODAL
+        // ============================================
         
         async function openEditModal(id) {
             tg.HapticFeedback.impactOccurred('medium');
@@ -1598,4 +1792,3 @@
     </script>
 </body>
 </html>
-
