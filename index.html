@@ -1123,7 +1123,7 @@
                 // Session timer для confirmed "По факту"
                 if (booking.status === 'confirmed' && !booking.end_time) {
                     timerHtml = `
-                        <div class="session-timer" data-start="${booking.booking_date}T${booking.start_time}" data-booking-id="${booking.id}">
+                        <div class="session-timer" data-start="${booking.booking_date} ${booking.start_time}" data-booking-id="${booking.id}">
                             <span class="session-timer-label">🕐 Гости сидят уже</span>
                             <span class="session-timer-value">--:--</span>
                         </div>
@@ -1353,7 +1353,9 @@
         }
         
         function updateSessionTimer(timer) {
-            const startDateTime = new Date(timer.dataset.start);
+            // Исправление для Safari/iOS: заменяем 'T' на пробел
+            const startString = timer.dataset.start.replace('T', ' ');
+            const startDateTime = new Date(startString);
             const now = new Date();
             const diff = now - startDateTime;
             
