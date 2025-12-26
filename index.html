@@ -758,7 +758,7 @@
             <span class="search-icon">🔍</span>
         </div>
         <div class="filter-chips">
-            <div class="filter-chip" onclick="filterByTable('all')">
+            <div class="filter-chip active" onclick="filterByTable('all')">
                 Все столы
             </div>
             <div class="filter-chip" onclick="filterByTable(6)">
@@ -851,6 +851,54 @@
         </div>
     </div>
     
+    <!-- Edit Booking Modal -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Редактировать бронь</div>
+                <div class="modal-close" onclick="closeEditModal()">✕</div>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editBookingId">
+                
+                <div class="form-group">
+                    <label class="form-label">Имя клиента</label>
+                    <input type="text" class="form-input" id="editName" placeholder="Иван Иванов">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Телефон</label>
+                    <input type="tel" class="form-input" id="editPhone" placeholder="+7 999 123 45 67">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Дата</label>
+                    <input type="date" class="form-input" id="editDate">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Время начала</label>
+                    <input type="time" class="form-input" id="editStartTime">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Время окончания</label>
+                    <input type="time" class="form-input" id="editEndTime" placeholder="Оставьте пустым для 'По факту'">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Стол</label>
+                    <select class="form-input" id="editTable">
+                        <option value="">Выберите стол...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Количество гостей</label>
+                    <input type="number" class="form-input" id="editGuests" min="1" max="20">
+                </div>
+                <div class="booking-actions">
+                    <button class="btn btn-cancel" onclick="closeEditModal()">Отмена</button>
+                    <button class="btn btn-confirm" onclick="submitEditBooking()">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <script>
         // ============================================
         // TELEGRAM WEB APP INITIALIZATION
@@ -904,14 +952,18 @@
                 const response = await fetch(`${API_URL}/tables`);
                 const tables = await response.json();
                 
-                const selectEl = document.getElementById('createTable');
-                selectEl.innerHTML = '<option value="">Выберите стол...</option>';
+                const createSelect = document.getElementById('createTable');
+                const editSelect = document.getElementById('editTable');
                 
-                tables.forEach(table => {
-                    const option = document.createElement('option');
-                    option.value = table.id;
-                    option.textContent = `Стол ${table.table_number} (${table.hall_name}, до ${table.capacity} чел.)`;
-                    selectEl.appendChild(option);
+                [createSelect, editSelect].forEach(selectEl => {
+                    selectEl.innerHTML = '<option value="">Выберите стол...</option>';
+                    
+                    tables.forEach(table => {
+                        const option = document.createElement('option');
+                        option.value = table.id;
+                        option.textContent = `Стол ${table.table_number} (${table.hall_name}, до ${table.capacity} чел.)`;
+                        selectEl.appendChild(option);
+                    });
                 });
             } catch (error) {
                 console.error('Ошибка загрузки столов:', error);
@@ -1117,6 +1169,9 @@
                         <button class="btn btn-confirm" onclick="confirmBooking(${booking.id})">
                             ✅ Подтвердить
                         </button>
+                        <button class="btn btn-edit" onclick="openEditModal(${booking.id})">
+                            ✏️ Изменить
+                        </button>
                         <button class="btn btn-cancel" onclick="cancelBooking(${booking.id})">
                             ❌ Отменить
                         </button>
@@ -1128,6 +1183,9 @@
                         <button class="btn btn-confirm" onclick="confirmArrival(${booking.id})">
                             ✅ Пришёл
                         </button>
+                        <button class="btn btn-edit" onclick="openEditModal(${booking.id})">
+                            ✏️ Изменить
+                        </button>
                         <button class="btn btn-cancel" onclick="noShow(${booking.id})">
                             ❌ Не пришёл
                         </button>
@@ -1138,6 +1196,9 @@
                     <div class="booking-actions">
                         <button class="btn btn-details" onclick="viewDetails(${booking.id})">
                             📋 Детали
+                        </button>
+                        <button class="btn btn-edit" onclick="openEditModal(${booking.id})">
+                            ✏️ Изменить
                         </button>
                         <button class="btn btn-cancel" onclick="cancelBooking(${booking.id})">
                             ❌ Отменить
@@ -1451,6 +1512,105 @@
             } catch (error) {
                 tg.HapticFeedback.notificationOccurred('error');
                 tg.showAlert('❌ Ошибка создания бронирования');
+            }
+        }
+        
+        // ============================================
+        // EDIT BOOKING
+        // ============================================
+        
+        async function openEditModal(id) {
+            tg.HapticFeedback.impactOccurred('medium');
+            
+            const booking = allBookings.find(b => b.id === id);
+            if (!booking) {
+                tg.showAlert('❌ Бронирование не найдено');
+                return;
+            }
+            
+            // Загрузка столов для селекта
+            try {
+                const response = await fetch(`${API_URL}/tables`);
+                const tables = await response.json();
+                
+                const selectEl = document.getElementById('editTable');
+                selectEl.innerHTML = '<option value="">Выберите стол...</option>';
+                
+                tables.forEach(table => {
+                    const option = document.createElement('option');
+                    option.value = table.id;
+                    option.textContent = `Стол ${table.table_number} (${table.hall_name}, до ${table.capacity} чел.)`;
+                    if (table.id === booking.table_id) {
+                        option.selected = true;
+                    }
+                    selectEl.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки столов:', error);
+            }
+            
+            // Заполнение формы
+            document.getElementById('editBookingId').value = booking.id;
+            document.getElementById('editName').value = booking.customer_name;
+            document.getElementById('editPhone').value = booking.customer_phone;
+            document.getElementById('editDate').value = booking.booking_date;
+            document.getElementById('editStartTime').value = booking.start_time.substring(0, 5);
+            document.getElementById('editEndTime').value = booking.end_time ? booking.end_time.substring(0, 5) : '';
+            document.getElementById('editGuests').value = booking.guests_count;
+            
+            document.getElementById('editModal').classList.add('show');
+        }
+        
+        function closeEditModal() {
+            tg.HapticFeedback.impactOccurred('light');
+            document.getElementById('editModal').classList.remove('show');
+        }
+        
+        async function submitEditBooking() {
+            tg.HapticFeedback.impactOccurred('medium');
+            
+            const id = document.getElementById('editBookingId').value;
+            const name = document.getElementById('editName').value.trim();
+            const phone = document.getElementById('editPhone').value.trim();
+            const date = document.getElementById('editDate').value;
+            const startTime = document.getElementById('editStartTime').value;
+            const endTime = document.getElementById('editEndTime').value;
+            const tableId = document.getElementById('editTable').value;
+            const guests = document.getElementById('editGuests').value;
+            
+            if (!name || !phone || !date || !startTime || !tableId || !guests) {
+                tg.showAlert('❌ Заполните все обязательные поля');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/bookings/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        customer_name: name,
+                        customer_phone: phone,
+                        booking_date: date,
+                        start_time: startTime,
+                        end_time: endTime || 'by_fact',
+                        table_id: parseInt(tableId),
+                        guests_count: parseInt(guests)
+                    })
+                });
+                
+                if (response.ok) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                    tg.showAlert('✅ Бронирование обновлено!');
+                    closeEditModal();
+                    loadBookings(currentTab);
+                } else {
+                    const error = await response.json();
+                    tg.HapticFeedback.notificationOccurred('error');
+                    tg.showAlert(`❌ Ошибка: ${error.error || 'Не удалось обновить'}`);
+                }
+            } catch (error) {
+                tg.HapticFeedback.notificationOccurred('error');
+                tg.showAlert('❌ Ошибка обновления');
             }
         }
         
