@@ -1123,14 +1123,14 @@
                 }
                 
                 // Session timer для confirmed "По факту"
-                if (booking.status === 'confirmed' && !booking.end_time) {
-                    timerHtml = `
-                        <div class="session-timer" data-start="${booking.booking_date.substring(0, 5)} ${booking.start_time}" data-booking-id="${booking.id}">
-                            <span class="session-timer-label">🕐 Гости сидят уже</span>
-                            <span class="session-timer-value">0ч 0мин</span>
-                        </div>
-                    `;
-                }
+if (booking.status === 'confirmed' && !booking.end_time) {
+    timerHtml = `
+        <div class="session-timer" data-start="${booking.booking_date} ${booking.start_time.substring(0, 5)}" data-booking-id="${booking.id}">
+            <span class="session-timer-label">🕐 Гости сидят уже</span>
+            <span class="session-timer-value">0ч 0мин</span>
+        </div>
+    `;
+}
                 
                 let progressHtml = '';
                 
@@ -1361,48 +1361,91 @@
         }
         
         function updateSessionTimer(timer) {
-            try {
-                const startStr = timer.dataset.start;
-                
-                if (!startStr || !startStr.includes(' ')) {
-                    console.error('Неверный формат data-start:', startStr);
-                    timer.querySelector('.session-timer-value').textContent = 'Ошибка';
-                    return;
-                }
-                
-                // Разбиваем на дату и время: "2025-12-27 02:05"
-                const [dateStr, timeStr] = startStr.split(' ');
-                const [year, month, day] = dateStr.split('-').map(Number);
-                const [hours, minutes] = timeStr.substring(0, 5).split(':').map(Number);
-                
-                // Создаём дату брони в MSK (как UTC+3)
-                // Время в БД УЖЕ в MSK, поэтому создаём как обычную локальную дату
-                const startDateTime = new Date(year, month - 1, day, hours, minutes, 0);
-                
-                // Текущее время (локальное)
-                const now = new Date();
-                
-                // Разница во времени
-                const diff = now - startDateTime;
-                
-                console.log(`Таймер брони ${timer.dataset.bookingId}: start=${startDateTime.toISOString()}, now=${now.toISOString()}, diff=${diff}ms`);
-                
-                if (diff < 0) {
-                    timer.querySelector('.session-timer-value').textContent = '0ч 0мин';
-                    return;
-                }
-                
-                const totalMinutes = Math.floor(diff / (1000 * 60));
-                const hoursDisplay = Math.floor(totalMinutes / 60);
-                const minutesDisplay = totalMinutes % 60;
-                
-                timer.querySelector('.session-timer-value').textContent = `${hoursDisplay}ч ${minutesDisplay}мин`;
-                
-            } catch (error) {
-                console.error('Ошибка updateSessionTimer:', error, 'data-start:', timer.dataset.start);
-                timer.querySelector('.session-timer-value').textContent = 'Ошибка';
-            }
+    try {
+        const startStr = timer.dataset.start;
+        
+        if (!startStr || !startStr.includes(' ')) {
+            console.error('Неверный формат data-start:', startStr);
+            timer.querySelector('.session-timer-value').textContent = 'Ошибка формата';
+            return;
         }
+        
+        console.log(`🔍 updateSessionTimer: startStr = "${startStr}"`);
+        
+        // Разбиваем на дату и время: "2025-12-27 02:31"
+        const parts = startStr.trim().split(' ');
+        if (parts.length !== 2) {
+            console.error('Неверное количество частей:', parts);
+            timer.querySelector('.session-timer-value').textContent = 'Ошибка данных';
+            return;
+        }
+        
+        const [dateStr, timeStr] = parts;
+        
+        // Парсим дату
+        const dateParts = dateStr.split('-');
+        if (dateParts.length !== 3) {
+            console.error('Неверный формат даты:', dateStr);
+            timer.querySelector('.session-timer-value').textContent = 'Ошибка даты';
+            return;
+        }
+        
+        const year = parseInt(dateParts[0]);
+        const month = parseInt(dateParts[1]);
+        const day = parseInt(dateParts[2]);
+        
+        // Парсим время (только часы и минуты)
+        const timeParts = timeStr.split(':');
+        if (timeParts.length < 2) {
+            console.error('Неверный формат времени:', timeStr);
+            timer.querySelector('.session-timer-value').textContent = 'Ошибка времени';
+            return;
+        }
+        
+        const hours = parseInt(timeParts[0]);
+        const minutes = parseInt(timeParts[1]);
+        
+        console.log(`📅 Парсинг: ${year}-${month}-${day} ${hours}:${minutes}`);
+        
+        // Создаём дату брони (локальное время браузера = MSK из БД)
+        const startDateTime = new Date(year, month - 1, day, hours, minutes, 0);
+        
+        // Проверка валидности даты
+        if (isNaN(startDateTime.getTime())) {
+            console.error('Невалидная дата после парсинга');
+            timer.querySelector('.session-timer-value').textContent = 'Невалидная дата';
+            return;
+        }
+        
+        // Текущее время (локальное время браузера)
+        const now = new Date();
+        
+        // Разница во времени
+        const diff = now - startDateTime;
+        
+        console.log(`⏱️ Бронь #${timer.dataset.bookingId}: start=${startDateTime.toLocaleString('ru-RU')}, now=${now.toLocaleString('ru-RU')}, diff=${diff}ms (${Math.floor(diff/1000/60)}мин)`);
+        
+        if (diff < 0) {
+            console.log('⚠️ Бронь ещё не началась');
+            timer.querySelector('.session-timer-value').textContent = '0ч 0мин';
+            return;
+        }
+        
+        const totalMinutes = Math.floor(diff / (1000 * 60));
+        const hoursDisplay = Math.floor(totalMinutes / 60);
+        const minutesDisplay = totalMinutes % 60;
+        
+        console.log(`✅ Отображение: ${hoursDisplay}ч ${minutesDisplay}мин`);
+        
+        timer.querySelector('.session-timer-value').textContent = `${hoursDisplay}ч ${minutesDisplay}мин`;
+        
+    } catch (error) {
+        console.error('❌ Ошибка updateSessionTimer:', error);
+        console.error('Stack:', error.stack);
+        console.error('data-start:', timer.dataset.start);
+        timer.querySelector('.session-timer-value').textContent = 'Критическая ошибка';
+    }
+}
         
         // ============================================
         // TAB SWITCHING
