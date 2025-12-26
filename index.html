@@ -146,19 +146,6 @@
             line-height: 1;
         }
         
-        .stat-change {
-            font-size: 11px;
-            font-weight: 600;
-        }
-        
-        .stat-change.positive {
-            color: var(--success-color);
-        }
-        
-        .stat-change.negative {
-            color: var(--error-color);
-        }
-        
         /* Search & Filters */
         .search-filter-bar {
             padding: 12px;
@@ -181,6 +168,7 @@
             font-size: 14px;
             font-family: inherit;
             transition: all 0.3s;
+            box-sizing: border-box;
         }
         
         .search-input:focus {
@@ -551,7 +539,7 @@
             line-height: 1.5;
         }
         
-        /* FAB (Floating Action Button) */
+        /* FAB */
         .fab {
             position: fixed;
             bottom: 24px;
@@ -671,6 +659,7 @@
             color: var(--text-color);
             font-size: 14px;
             font-family: inherit;
+            box-sizing: border-box;
         }
         
         .form-input:focus {
@@ -678,28 +667,16 @@
             border-color: var(--accent-color);
         }
         
-        /* Pull to Refresh */
-        .pull-to-refresh {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--bg-color);
-            transform: translateY(-60px);
-            transition: transform 0.3s;
+        .form-input[type="date"],
+        .form-input[type="time"] {
+            max-width: 100%;
+            overflow: hidden;
         }
         
-        .pull-to-refresh.active {
-            transform: translateY(0);
-        }
-        
-        .refresh-icon {
-            font-size: 24px;
-            animation: spin 1s linear infinite;
+        .form-hint {
+            font-size: 11px;
+            color: var(--hint-color);
+            margin-top: 6px;
         }
     </style>
 </head>
@@ -828,10 +805,10 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Время окончания</label>
-                    <select class="form-input" id="createEndTime">
-                        <option value="by_fact">По факту</option>
-                        <option value="auto">Авто (+2 часа)</option>
-                    </select>
+                    <input type="time" class="form-input" id="createEndTime" placeholder="Оставьте пустым для 'По факту'">
+                    <div class="form-hint">
+                        💡 Оставьте пустым для "По факту"
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Стол</label>
@@ -880,6 +857,9 @@
                 <div class="form-group">
                     <label class="form-label">Время окончания</label>
                     <input type="time" class="form-input" id="editEndTime" placeholder="Оставьте пустым для 'По факту'">
+                    <div class="form-hint">
+                        💡 Оставьте пустым для "По факту"
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Стол</label>
@@ -898,7 +878,6 @@
             </div>
         </div>
     </div>
-    
     <script>
         // ============================================
         // TELEGRAM WEB APP INITIALIZATION
@@ -1008,7 +987,7 @@
                 
             } catch (error) {
                 console.error('Ошибка загрузки:', error);
-                listEl.innerHTML = `
+                                listEl.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-icon">⚠️</div>
                         <div class="empty-title">Ошибка загрузки</div>
@@ -1020,12 +999,10 @@
         
         function applyFilters() {
             filteredBookings = allBookings.filter(booking => {
-                // Фильтр по столу
                 if (currentFilter.table !== 'all' && booking.table_number !== currentFilter.table) {
                     return false;
                 }
                 
-                // Фильтр по поиску
                 if (currentFilter.search) {
                     const search = currentFilter.search.toLowerCase();
                     const name = booking.customer_name.toLowerCase();
@@ -1051,7 +1028,6 @@
             document.getElementById('confirmedCount').textContent = confirmed.length;
             document.getElementById('cancelledCount').textContent = cancelled.length;
             
-            // Обновление бейджей
             const todayBadge = document.getElementById('todayBadge');
             const awaitingBadge = document.getElementById('awaitingBadge');
             
@@ -1220,10 +1196,6 @@
             return texts[status] || status;
         }
         
-        // ============================================
-        // COUNTDOWN TIMERS
-        // ============================================
-        
         function startCountdownTimers() {
             const timers = document.querySelectorAll('.countdown-timer');
             
@@ -1260,10 +1232,6 @@
             }
         }
         
-        // ============================================
-        // TAB SWITCHING
-        // ============================================
-        
         function switchTab(tab) {
             tg.HapticFeedback.selectionChanged();
             
@@ -1272,10 +1240,6 @@
             
             loadBookings(tab);
         }
-        
-        // ============================================
-        // FILTER FUNCTIONS
-        // ============================================
         
         function filterByTable(tableNumber) {
             tg.HapticFeedback.selectionChanged();
@@ -1294,10 +1258,6 @@
             applyFilters();
             renderBookings(filteredBookings);
         }
-        
-        // ============================================
-        // BOOKING ACTIONS
-        // ============================================
         
         async function confirmBooking(id) {
             tg.HapticFeedback.impactOccurred('medium');
@@ -1419,14 +1379,9 @@
             tg.showAlert(message);
         }
         
-        // ============================================
-        // CREATE BOOKING
-        // ============================================
-        
         function openCreateModal() {
             tg.HapticFeedback.impactOccurred('medium');
             
-            // Установка текущей даты
             const now = new Date();
             const mskOffset = 3 * 60;
             const nowMSK = new Date(now.getTime() + mskOffset * 60 * 1000);
@@ -1435,7 +1390,6 @@
             document.getElementById('createDate').value = today;
             document.getElementById('createDate').min = today;
             
-            // Установка текущего времени + 30 минут
             const currentHour = nowMSK.getUTCHours();
             const currentMinute = nowMSK.getUTCMinutes();
             const roundedMinute = Math.ceil((currentMinute + 30) / 30) * 30;
@@ -1445,6 +1399,8 @@
             document.getElementById('createStartTime').value = 
                 `${String(nextHour % 24).padStart(2, '0')}:${String(nextMinute).padStart(2, '0')}`;
             
+            document.getElementById('createEndTime').value = '';
+            
             document.getElementById('createModal').classList.add('show');
         }
         
@@ -1452,11 +1408,11 @@
             tg.HapticFeedback.impactOccurred('light');
             document.getElementById('createModal').classList.remove('show');
             
-            // Очистка формы
             document.getElementById('createName').value = '';
             document.getElementById('createPhone').value = '';
             document.getElementById('createTable').value = '';
             document.getElementById('createGuests').value = '2';
+            document.getElementById('createEndTime').value = '';
         }
         
         async function submitCreateBooking() {
@@ -1466,7 +1422,7 @@
             const phone = document.getElementById('createPhone').value.trim();
             const date = document.getElementById('createDate').value;
             const startTime = document.getElementById('createStartTime').value;
-            const endTimeSelect = document.getElementById('createEndTime').value;
+            const endTime = document.getElementById('createEndTime').value.trim();
             const tableId = document.getElementById('createTable').value;
             const guests = document.getElementById('createGuests').value;
             
@@ -1475,13 +1431,22 @@
                 return;
             }
             
-            let endTime = null;
-            if (endTimeSelect === 'auto') {
-                const [hours, minutes] = startTime.split(':');
-                const endHours = (parseInt(hours) + 2) % 24;
-                endTime = `${String(endHours).padStart(2, '0')}:${minutes}`;
+            let finalEndTime;
+            if (endTime === '') {
+                finalEndTime = 'by_fact';
             } else {
-                endTime = 'by_fact';
+                const [startH, startM] = startTime.split(':').map(Number);
+                const [endH, endM] = endTime.split(':').map(Number);
+                
+                const startMinutes = startH * 60 + startM;
+                const endMinutes = endH * 60 + endM;
+                
+                if (endMinutes <= startMinutes) {
+                    tg.showAlert('❌ Время окончания должно быть позже времени начала');
+                    return;
+                }
+                
+                finalEndTime = endTime;
             }
             
             try {
@@ -1494,7 +1459,7 @@
                         customer_phone: phone,
                         booking_date: date,
                         start_time: startTime,
-                        end_time: endTime,
+                        end_time: finalEndTime,
                         guests_count: parseInt(guests)
                     })
                 });
@@ -1515,10 +1480,6 @@
             }
         }
         
-        // ============================================
-        // EDIT BOOKING
-        // ============================================
-        
         async function openEditModal(id) {
             tg.HapticFeedback.impactOccurred('medium');
             
@@ -1528,7 +1489,6 @@
                 return;
             }
             
-            // Загрузка столов для селекта
             try {
                 const response = await fetch(`${API_URL}/tables`);
                 const tables = await response.json();
@@ -1549,7 +1509,6 @@
                 console.error('Ошибка загрузки столов:', error);
             }
             
-            // Заполнение формы
             document.getElementById('editBookingId').value = booking.id;
             document.getElementById('editName').value = booking.customer_name;
             document.getElementById('editPhone').value = booking.customer_phone;
@@ -1574,13 +1533,31 @@
             const phone = document.getElementById('editPhone').value.trim();
             const date = document.getElementById('editDate').value;
             const startTime = document.getElementById('editStartTime').value;
-            const endTime = document.getElementById('editEndTime').value;
+            const endTime = document.getElementById('editEndTime').value.trim();
             const tableId = document.getElementById('editTable').value;
             const guests = document.getElementById('editGuests').value;
             
             if (!name || !phone || !date || !startTime || !tableId || !guests) {
                 tg.showAlert('❌ Заполните все обязательные поля');
                 return;
+            }
+            
+            let finalEndTime;
+            if (endTime === '') {
+                finalEndTime = 'by_fact';
+            } else {
+                const [startH, startM] = startTime.split(':').map(Number);
+                const [endH, endM] = endTime.split(':').map(Number);
+                
+                const startMinutes = startH * 60 + startM;
+                const endMinutes = endH * 60 + endM;
+                
+                if (endMinutes <= startMinutes) {
+                    tg.showAlert('❌ Время окончания должно быть позже времени начала');
+                    return;
+                }
+                
+                finalEndTime = endTime;
             }
             
             try {
@@ -1592,7 +1569,7 @@
                         customer_phone: phone,
                         booking_date: date,
                         start_time: startTime,
-                        end_time: endTime || 'by_fact',
+                        end_time: finalEndTime,
                         table_id: parseInt(tableId),
                         guests_count: parseInt(guests)
                     })
@@ -1614,10 +1591,6 @@
             }
         }
         
-        // ============================================
-        // REFRESH DATA
-        // ============================================
-        
         function refreshData() {
             tg.HapticFeedback.impactOccurred('light');
             loadBookings(currentTab);
@@ -1625,3 +1598,4 @@
     </script>
 </body>
 </html>
+
