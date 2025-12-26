@@ -1353,22 +1353,42 @@
         }
         
         function updateSessionTimer(timer) {
-            // Исправление для Safari/iOS: заменяем 'T' на пробел
-            const startString = timer.dataset.start.replace('T', ' ');
-            const startDateTime = new Date(startString);
-            const now = new Date();
-            const diff = now - startDateTime;
-            
-            if (diff < 0) {
-                timer.querySelector('.session-timer-value').textContent = '0ч 0мин';
-                return;
-            }
-            
-            const hours = Math.floor(diff / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            
-            timer.querySelector('.session-timer-value').textContent = `${hours}ч ${minutes}мин`;
+    try {
+        // Получаем дату и время из data-атрибута
+        const startStr = timer.dataset.start;
+        
+        // Разбиваем на дату и время
+        const [dateStr, timeStr] = startStr.split(' ');
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        
+        // Создаём дату явно
+        const startDateTime = new Date(year, month - 1, day, hours, minutes, 0);
+        
+        // Текущее время по MSK
+        const now = new Date();
+        const mskOffset = 3 * 60;
+        const nowMSK = new Date(now.getTime() + mskOffset * 60 * 1000);
+        
+        // Разница во времени
+        const diff = nowMSK - startDateTime;
+        
+        if (diff < 0) {
+            timer.querySelector('.session-timer-value').textContent = '0ч 0мин';
+            return;
         }
+        
+        const totalMinutes = Math.floor(diff / (1000 * 60));
+        const hoursDisplay = Math.floor(totalMinutes / 60);
+        const minutesDisplay = totalMinutes % 60;
+        
+        timer.querySelector('.session-timer-value').textContent = `${hoursDisplay}ч ${minutesDisplay}мин`;
+        
+    } catch (error) {
+        console.error('Ошибка updateSessionTimer:', error);
+        timer.querySelector('.session-timer-value').textContent = 'Ошибка';
+    }
+}
         
         // ============================================
         // TAB SWITCHING
