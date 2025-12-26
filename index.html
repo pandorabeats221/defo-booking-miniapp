@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Defo Booking Admin</title>
     
+    <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
         * {
@@ -14,87 +18,312 @@
             box-sizing: border-box;
         }
         
+        :root {
+            --bg-color: var(--tg-theme-bg-color, #0A0A0A);
+            --secondary-bg: var(--tg-theme-secondary-bg-color, #141414);
+            --text-color: var(--tg-theme-text-color, #E8E8E8);
+            --hint-color: var(--tg-theme-hint-color, #999);
+            --button-color: var(--tg-theme-button-color, #D4AF37);
+            --button-text: var(--tg-theme-button-text-color, #000);
+            --accent-color: #D4AF37;
+            --border-color: #1F1F1F;
+            --success-color: #4CAF50;
+            --warning-color: #FF9800;
+            --error-color: #F44336;
+            --pending-color: #FFC107;
+        }
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--tg-theme-bg-color, #0A0A0A);
-            color: var(--tg-theme-text-color, #E8E8E8);
-            padding: 16px;
+            font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            overflow-x: hidden;
+            padding: 0;
+            margin: 0;
+            padding-bottom: 80px;
+            -webkit-font-smoothing: antialiased;
         }
         
+        .container {
+            max-width: 100%;
+            padding: 12px;
+        }
+        
+        /* Header */
         .header {
-            text-align: center;
-            padding: 20px 0;
-            border-bottom: 1px solid #333;
-            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 12px;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            background: var(--bg-color);
+            z-index: 100;
+            backdrop-filter: blur(10px);
         }
         
-        h1 {
+        .header-title {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .header h1 {
+            font-family: 'Cormorant Garamond', serif;
             font-size: 24px;
-            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--accent-color);
         }
         
         .user-info {
-            font-size: 14px;
-            color: #999;
+            font-size: 12px;
+            color: var(--hint-color);
         }
         
-        .stats {
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 18px;
+        }
+        
+        .icon-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            padding: 12px;
         }
         
         .stat-card {
-            background: #141414;
-            border: 1px solid #333;
+            background: linear-gradient(135deg, var(--secondary-bg) 0%, rgba(212, 175, 55, 0.05) 100%);
+            border: 1px solid var(--border-color);
             border-radius: 12px;
-            padding: 16px;
-            text-align: center;
+            padding: 14px;
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:active {
+            transform: scale(0.98);
         }
         
         .stat-label {
-            font-size: 12px;
-            color: #999;
-            margin-bottom: 8px;
+            font-size: 10px;
+            color: var(--hint-color);
             text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        
+        .stat-value-wrapper {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
         }
         
         .stat-value {
-            font-size: 28px;
-            font-weight: bold;
-            color: #D4AF37;
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--accent-color);
+            line-height: 1;
         }
         
-        .tabs {
+        .stat-change {
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .stat-change.positive {
+            color: var(--success-color);
+        }
+        
+        .stat-change.negative {
+            color: var(--error-color);
+        }
+        
+        /* Search & Filters */
+        .search-filter-bar {
+            padding: 12px;
             display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-            overflow-x: auto;
+            flex-direction: column;
+            gap: 10px;
         }
         
-        .tab {
-            padding: 10px 16px;
-            background: #141414;
-            border: 1px solid #333;
-            border-radius: 8px;
-            cursor: pointer;
-            white-space: nowrap;
+        .search-box {
+            position: relative;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 12px 40px 12px 14px;
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-color);
+            font-size: 14px;
+            font-family: inherit;
             transition: all 0.3s;
         }
         
-        .tab.active {
-            background: #D4AF37;
-            color: #000;
-            border-color: #D4AF37;
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
         }
         
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--hint-color);
+            font-size: 16px;
+        }
+        
+        .filter-chips {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        
+        .filter-chips::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .filter-chip {
+            padding: 8px 14px;
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .filter-chip.active {
+            background: var(--accent-color);
+            color: var(--button-text);
+            border-color: var(--accent-color);
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 6px;
+            padding: 0 12px 12px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        
+        .tabs::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .tab {
+            padding: 10px 18px;
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .tab.active {
+            background: var(--accent-color);
+            color: var(--button-text);
+            border-color: var(--accent-color);
+        }
+        
+        .tab-badge {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: var(--error-color);
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+        }
+        
+        /* Booking List */
+        .booking-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 0 12px 12px;
+        }
+        
+        /* Booking Card */
         .booking-card {
-            background: #141414;
-            border: 1px solid #333;
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 12px;
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 14px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .booking-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--accent-color);
+        }
+        
+        .booking-card.status-pending::before {
+            background: var(--pending-color);
+        }
+        
+        .booking-card.status-waiting_confirmation::before {
+            background: var(--warning-color);
+        }
+        
+        .booking-card.status-confirmed::before {
+            background: var(--success-color);
+        }
+        
+        .booking-card.status-cancelled::before {
+            background: var(--error-color);
+        }
+        
+        .booking-card:active {
+            transform: scale(0.98);
         }
         
         .booking-header {
@@ -105,235 +334,1134 @@
         }
         
         .booking-id {
-            font-weight: 600;
-            font-size: 16px;
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--accent-color);
         }
         
-        .status {
+        .status-badge {
             padding: 4px 10px;
             border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-badge.pending {
+            background: rgba(255, 193, 7, 0.2);
+            color: var(--pending-color);
+        }
+        
+        .status-badge.waiting_confirmation {
+            background: rgba(255, 152, 0, 0.2);
+            color: var(--warning-color);
+            animation: pulse 2s infinite;
+        }
+        
+        .status-badge.confirmed {
+            background: rgba(76, 175, 80, 0.2);
+            color: var(--success-color);
+        }
+        
+        .status-badge.cancelled {
+            background: rgba(244, 67, 54, 0.2);
+            color: var(--error-color);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .booking-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .info-label {
+            color: var(--hint-color);
+            font-size: 10px;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        
+        .info-value {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .info-icon {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+        
+        /* Countdown Timer */
+        .countdown-timer {
+            background: linear-gradient(90deg, rgba(255, 152, 0, 0.1) 0%, rgba(255, 152, 0, 0.05) 100%);
+            border: 1px solid rgba(255, 152, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .countdown-label {
             font-size: 11px;
+            color: var(--warning-color);
             font-weight: 600;
             text-transform: uppercase;
         }
         
-        .status.confirmed {
-            background: rgba(76, 175, 80, 0.2);
-            color: #4CAF50;
+        .countdown-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--warning-color);
+            font-variant-numeric: tabular-nums;
         }
         
-        .status.pending {
-            background: rgba(255, 152, 0, 0.2);
-            color: #FF9800;
+        .countdown-critical {
+            animation: blink 1s infinite;
         }
         
-        .info {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            font-size: 13px;
+        @keyframes blink {
+            0%, 50%, 100% { opacity: 1; }
+            25%, 75% { opacity: 0.3; }
+        }
+        
+        /* Progress Bar */
+        .progress-bar {
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
+            overflow: hidden;
             margin-bottom: 12px;
         }
         
-        .info-label {
-            color: #999;
-            font-size: 11px;
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success-color), var(--accent-color));
+            transition: width 0.3s;
         }
         
-        .actions {
+        /* Booking Actions */
+        .booking-actions {
             display: flex;
             gap: 8px;
         }
         
-        button {
+        .btn {
             flex: 1;
-            padding: 10px;
+            padding: 11px;
             border: none;
-            border-radius: 8px;
-            font-weight: 600;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
             cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        
+        .btn:active {
+            transform: scale(0.95);
         }
         
         .btn-confirm {
-            background: #4CAF50;
+            background: var(--success-color);
             color: white;
         }
         
         .btn-cancel {
-            background: #F44336;
+            background: var(--error-color);
             color: white;
         }
         
+        .btn-edit {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .btn-details {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+        
+        /* Loading States */
         .loading {
             text-align: center;
-            padding: 40px;
-            color: #666;
+            padding: 40px 20px;
+            color: var(--hint-color);
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--hint-color);
+        }
+        
+        .empty-icon {
+            font-size: 56px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .empty-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-color);
+        }
+        
+        .empty-text {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        /* FAB (Floating Action Button) */
+        .fab {
+            position: fixed;
+            bottom: 24px;
+            right: 16px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-color), #E8C547);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: var(--button-text);
+            box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+            cursor: pointer;
+            z-index: 1000;
+            transition: all 0.3s;
+        }
+        
+        .fab:active {
+            transform: scale(0.9);
+        }
+        
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: modalSlideUp 0.3s;
+        }
+        
+        @keyframes modalSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+        
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--hint-color);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-color);
+            font-size: 14px;
+            font-family: inherit;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+        
+        /* Pull to Refresh */
+        .pull-to-refresh {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-color);
+            transform: translateY(-60px);
+            transition: transform 0.3s;
+        }
+        
+        .pull-to-refresh.active {
+            transform: translateY(0);
+        }
+        
+        .refresh-icon {
+            font-size: 24px;
+            animation: spin 1s linear infinite;
         }
     </style>
 </head>
 <body>
+    <!-- Header -->
     <div class="header">
-        <h1>🍽️ Defo Booking</h1>
-        <div class="user-info" id="userName">Загрузка...</div>
+        <div class="header-title">
+            <h1>Defo Booking</h1>
+            <div class="user-info" id="userName">Загрузка...</div>
+        </div>
+        <div class="header-actions">
+            <div class="icon-btn" onclick="refreshData()" title="Обновить">
+                🔄
+            </div>
+        </div>
     </div>
     
-    <div class="stats">
+    <!-- Stats Grid -->
+    <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-label">Сегодня</div>
-            <div class="stat-value" id="todayCount">0</div>
+            <div class="stat-value-wrapper">
+                <div class="stat-value" id="todayCount">0</div>
+            </div>
         </div>
         <div class="stat-card">
             <div class="stat-label">Ожидают</div>
-            <div class="stat-value" id="awaitingCount">0</div>
+            <div class="stat-value-wrapper">
+                <div class="stat-value" id="awaitingCount">0</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Подтверждено</div>
+            <div class="stat-value-wrapper">
+                <div class="stat-value" id="confirmedCount">0</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Отменено</div>
+            <div class="stat-value-wrapper">
+                <div class="stat-value" id="cancelledCount">0</div>
+            </div>
         </div>
     </div>
     
-    <div class="tabs">
-        <div class="tab active" onclick="switchTab('today')">Сегодня</div>
-        <div class="tab" onclick="switchTab('awaiting')">Ожидают</div>
+    <!-- Search & Filters -->
+    <div class="search-filter-bar">
+        <div class="search-box">
+            <input 
+                type="text" 
+                class="search-input" 
+                id="searchInput"
+                placeholder="Поиск по имени или телефону..."
+                oninput="handleSearch()"
+            >
+            <span class="search-icon">🔍</span>
+        </div>
+        <div class="filter-chips">
+            <div class="filter-chip" onclick="filterByTable('all')">
+                Все столы
+            </div>
+            <div class="filter-chip" onclick="filterByTable(6)">
+                Стол 6
+            </div>
+            <div class="filter-chip" onclick="filterByTable(13)">
+                Стол 13
+            </div>
+            <div class="filter-chip" onclick="filterByTable(7)">
+                Стол 7
+            </div>
+        </div>
     </div>
     
-    <div id="bookingList">
-        <div class="loading">Загрузка бронирований...</div>
+    <!-- Tabs -->
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('today')">
+            Сегодня
+            <span class="tab-badge" id="todayBadge" style="display: none;">0</span>
+        </div>
+        <div class="tab" onclick="switchTab('tomorrow')">
+            Завтра
+        </div>
+        <div class="tab" onclick="switchTab('awaiting')">
+            Ожидают
+            <span class="tab-badge" id="awaitingBadge" style="display: none;">0</span>
+        </div>
+        <div class="tab" onclick="switchTab('all')">
+            Все
+        </div>
+    </div>
+    
+    <!-- Booking List -->
+    <div class="booking-list" id="bookingList">
+        <div class="loading">
+            <div class="loading-spinner"></div>
+            <div>Загрузка бронирований...</div>
+        </div>
+    </div>
+    
+    <!-- FAB -->
+    <div class="fab" onclick="openCreateModal()">➕</div>
+    
+    <!-- Create Booking Modal -->
+    <div class="modal" id="createModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Новая бронь</div>
+                <div class="modal-close" onclick="closeCreateModal()">✕</div>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Имя клиента</label>
+                    <input type="text" class="form-input" id="createName" placeholder="Иван Иванов">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Телефон</label>
+                    <input type="tel" class="form-input" id="createPhone" placeholder="+7 999 123 45 67">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Дата</label>
+                    <input type="date" class="form-input" id="createDate">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Время начала</label>
+                    <input type="time" class="form-input" id="createStartTime">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Время окончания</label>
+                    <select class="form-input" id="createEndTime">
+                        <option value="by_fact">По факту</option>
+                        <option value="auto">Авто (+2 часа)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Стол</label>
+                    <select class="form-input" id="createTable">
+                        <option value="">Выберите стол...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Количество гостей</label>
+                    <input type="number" class="form-input" id="createGuests" min="1" max="20" value="2">
+                </div>
+                <div class="booking-actions">
+                    <button class="btn btn-cancel" onclick="closeCreateModal()">Отмена</button>
+                    <button class="btn btn-confirm" onclick="submitCreateBooking()">Создать</button>
+                </div>
+            </div>
+        </div>
     </div>
     
     <script>
+        // ============================================
+        // TELEGRAM WEB APP INITIALIZATION
+        // ============================================
+        
         const API_URL = 'https://defo-booking-api.onrender.com/api';
         let tg = window.Telegram.WebApp;
         let currentTab = 'today';
+        let allBookings = [];
+        let filteredBookings = [];
+        let currentFilter = { table: 'all', search: '' };
         
+        // Инициализация
         tg.ready();
         tg.expand();
+        tg.enableClosingConfirmation();
         
-        document.getElementById('userName').textContent = 
-            tg.initDataUnsafe?.user?.first_name || 'Админ';
+        // Установка цветов
+        tg.setHeaderColor(tg.themeParams.bg_color || '#0A0A0A');
+        tg.setBackgroundColor(tg.themeParams.bg_color || '#0A0A0A');
         
-        loadBookings('today');
+        // Отображение имени пользователя
+        const userName = tg.initDataUnsafe?.user?.first_name || 'Админ';
+        document.getElementById('userName').textContent = `👤 ${userName}`;
+        
+        // Main Button
+        tg.MainButton.text = '🔄 Обновить';
+        tg.MainButton.color = '#D4AF37';
+        tg.MainButton.textColor = '#000000';
+        tg.MainButton.onClick(() => {
+            tg.HapticFeedback.impactOccurred('medium');
+            refreshData();
+        });
+        tg.MainButton.show();
+        
+        // Загрузка данных при старте
+        loadTables();
+        loadBookings(currentTab);
+        
+        // Автообновление каждые 30 секунд
+        setInterval(() => {
+            loadBookings(currentTab);
+        }, 30000);
+        
+        // ============================================
+        // DATA LOADING FUNCTIONS
+        // ============================================
+        
+        async function loadTables() {
+            try {
+                const response = await fetch(`${API_URL}/tables`);
+                const tables = await response.json();
+                
+                const selectEl = document.getElementById('createTable');
+                selectEl.innerHTML = '<option value="">Выберите стол...</option>';
+                
+                tables.forEach(table => {
+                    const option = document.createElement('option');
+                    option.value = table.id;
+                    option.textContent = `Стол ${table.table_number} (${table.hall_name}, до ${table.capacity} чел.)`;
+                    selectEl.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки столов:', error);
+            }
+        }
         
         async function loadBookings(tab) {
             currentTab = tab;
             const listEl = document.getElementById('bookingList');
-            listEl.innerHTML = '<div class="loading">Загрузка...</div>';
             
             try {
-                const today = new Date().toISOString().split('T')[0];
-                let url = `${API_URL}/bookings?date=${today}`;
+                const now = new Date();
+                const mskOffset = 3 * 60;
+                const nowMSK = new Date(now.getTime() + mskOffset * 60 * 1000);
+                const today = nowMSK.toISOString().split('T')[0];
+                const tomorrow = new Date(nowMSK.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
                 
-                if (tab === 'awaiting') {
-                    url += '&status=waiting_confirmation';
+                let url = `${API_URL}/bookings?`;
+                
+                if (tab === 'today') {
+                    url += `date=${today}`;
+                } else if (tab === 'tomorrow') {
+                    url += `date=${tomorrow}`;
+                } else if (tab === 'awaiting') {
+                    url += `date=${today}&status=waiting_confirmation`;
                 }
                 
                 const response = await fetch(url);
-                const bookings = await response.json();
+                allBookings = await response.json();
                 
-                updateStats(bookings);
-                renderBookings(bookings);
+                // Применяем фильтры
+                applyFilters();
+                
+                // Обновление статистики
+                updateStats(allBookings);
+                
+                // Отображение броней
+                renderBookings(filteredBookings);
+                
+                // Запуск таймеров
+                startCountdownTimers();
                 
             } catch (error) {
-                listEl.innerHTML = '<div class="loading">Ошибка загрузки</div>';
+                console.error('Ошибка загрузки:', error);
+                listEl.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">⚠️</div>
+                        <div class="empty-title">Ошибка загрузки</div>
+                        <div class="empty-text">Не удалось загрузить данные</div>
+                    </div>
+                `;
             }
         }
         
+        function applyFilters() {
+            filteredBookings = allBookings.filter(booking => {
+                // Фильтр по столу
+                if (currentFilter.table !== 'all' && booking.table_number !== currentFilter.table) {
+                    return false;
+                }
+                
+                // Фильтр по поиску
+                if (currentFilter.search) {
+                    const search = currentFilter.search.toLowerCase();
+                    const name = booking.customer_name.toLowerCase();
+                    const phone = booking.customer_phone.toLowerCase();
+                    
+                    if (!name.includes(search) && !phone.includes(search)) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            });
+        }
+        
         function updateStats(bookings) {
-            document.getElementById('todayCount').textContent = bookings.length;
-            document.getElementById('awaitingCount').textContent = 
-                bookings.filter(b => b.status === 'waiting_confirmation').length;
+            const today = bookings.filter(b => b.status !== 'cancelled');
+            const awaiting = bookings.filter(b => b.status === 'waiting_confirmation');
+            const confirmed = bookings.filter(b => b.status === 'confirmed');
+            const cancelled = bookings.filter(b => b.status === 'cancelled');
+            
+            document.getElementById('todayCount').textContent = today.length;
+            document.getElementById('awaitingCount').textContent = awaiting.length;
+            document.getElementById('confirmedCount').textContent = confirmed.length;
+            document.getElementById('cancelledCount').textContent = cancelled.length;
+            
+            // Обновление бейджей
+            const todayBadge = document.getElementById('todayBadge');
+            const awaitingBadge = document.getElementById('awaitingBadge');
+            
+            if (today.length > 0) {
+                todayBadge.textContent = today.length;
+                todayBadge.style.display = 'block';
+            } else {
+                todayBadge.style.display = 'none';
+            }
+            
+            if (awaiting.length > 0) {
+                awaitingBadge.textContent = awaiting.length;
+                awaitingBadge.style.display = 'block';
+            } else {
+                awaitingBadge.style.display = 'none';
+            }
         }
         
         function renderBookings(bookings) {
             const listEl = document.getElementById('bookingList');
             
             if (bookings.length === 0) {
-                listEl.innerHTML = '<div class="loading">Нет бронирований</div>';
+                listEl.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📅</div>
+                        <div class="empty-title">Нет бронирований</div>
+                        <div class="empty-text">Брони появятся здесь автоматически</div>
+                    </div>
+                `;
                 return;
             }
             
-            listEl.innerHTML = bookings.map(b => `
-                <div class="booking-card">
-                    <div class="booking-header">
-                        <div class="booking-id">Бронь #${b.id}</div>
-                        <div class="status ${b.status}">${getStatus(b.status)}</div>
+            listEl.innerHTML = bookings.map(booking => {
+                const endTime = booking.end_time ? booking.end_time.substring(0, 5) : 'По факту';
+                const statusText = getStatusText(booking.status);
+                const statusClass = booking.status;
+                
+                let timerHtml = '';
+                if (booking.status === 'waiting_confirmation' && booking.confirmation_deadline) {
+                    timerHtml = `
+                        <div class="countdown-timer" data-deadline="${booking.confirmation_deadline}" data-booking-id="${booking.id}">
+                            <span class="countdown-label">⏱️ Осталось времени</span>
+                            <span class="countdown-value">--:--</span>
+                        </div>
+                    `;
+                }
+                
+                let progressHtml = '';
+                if (booking.status === 'confirmed' && booking.end_time) {
+                    const now = new Date();
+                    const start = new Date(`${booking.booking_date}T${booking.start_time}`);
+                    const end = new Date(`${booking.booking_date}T${booking.end_time}`);
+                    
+                    if (now >= start && now <= end) {
+                        const total = end - start;
+                        const elapsed = now - start;
+                        const percent = Math.min(100, (elapsed / total) * 100);
+                        
+                        progressHtml = `
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${percent}%"></div>
+                            </div>
+                        `;
+                    }
+                }
+                
+                return `
+                    <div class="booking-card status-${statusClass}">
+                        <div class="booking-header">
+                            <div class="booking-id">Бронь #${booking.id}</div>
+                            <div class="status-badge ${statusClass}">${statusText}</div>
+                        </div>
+                        ${timerHtml}
+                        ${progressHtml}
+                        <div class="booking-info">
+                            <div class="info-item">
+                                <div class="info-label">Стол</div>
+                                <div class="info-value">
+                                    <span class="info-icon">🪑</span>
+                                    ${booking.table_number}
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Время</div>
+                                <div class="info-value">
+                                    <span class="info-icon">⏰</span>
+                                    ${booking.start_time.substring(0, 5)} - ${endTime}
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Клиент</div>
+                                <div class="info-value">
+                                    <span class="info-icon">👤</span>
+                                    ${booking.customer_name}
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Телефон</div>
+                                <div class="info-value">
+                                    <span class="info-icon">📞</span>
+                                    ${booking.customer_phone}
+                                </div>
+                            </div>
+                        </div>
+                        ${renderActions(booking)}
                     </div>
-                    <div class="info">
-                        <div>
-                            <div class="info-label">Стол</div>
-                            <div>🪑 ${b.table_number}</div>
-                        </div>
-                        <div>
-                            <div class="info-label">Время</div>
-                            <div>⏰ ${b.start_time.substring(0,5)}</div>
-                        </div>
-                        <div>
-                            <div class="info-label">Клиент</div>
-                            <div>👤 ${b.customer_name}</div>
-                        </div>
-                        <div>
-                            <div class="info-label">Телефон</div>
-                            <div>📞 ${b.customer_phone}</div>
-                        </div>
-                    </div>
-                    ${renderActions(b)}
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
         
-        function renderActions(b) {
-            if (b.status === 'waiting_confirmation') {
+        function renderActions(booking) {
+            if (booking.status === 'pending') {
                 return `
-                    <div class="actions">
-                        <button class="btn-confirm" onclick="confirm(${b.id})">✅ Пришёл</button>
-                        <button class="btn-cancel" onclick="noShow(${b.id})">❌ Не пришёл</button>
+                    <div class="booking-actions">
+                        <button class="btn btn-confirm" onclick="confirmBooking(${booking.id})">
+                            ✅ Подтвердить
+                        </button>
+                        <button class="btn btn-cancel" onclick="cancelBooking(${booking.id})">
+                            ❌ Отменить
+                        </button>
+                    </div>
+                `;
+            } else if (booking.status === 'waiting_confirmation') {
+                return `
+                    <div class="booking-actions">
+                        <button class="btn btn-confirm" onclick="confirmArrival(${booking.id})">
+                            ✅ Пришёл
+                        </button>
+                        <button class="btn btn-cancel" onclick="noShow(${booking.id})">
+                            ❌ Не пришёл
+                        </button>
+                    </div>
+                `;
+            } else if (booking.status === 'confirmed') {
+                return `
+                    <div class="booking-actions">
+                        <button class="btn btn-details" onclick="viewDetails(${booking.id})">
+                            📋 Детали
+                        </button>
+                        <button class="btn btn-cancel" onclick="cancelBooking(${booking.id})">
+                            ❌ Отменить
+                        </button>
                     </div>
                 `;
             }
             return '';
         }
         
-        function getStatus(s) {
-            return {
+        function getStatusText(status) {
+            const texts = {
                 'pending': 'Ожидает',
-                'waiting_confirmation': 'Подтвердить',
+                'waiting_confirmation': 'Подтвердить приход',
                 'confirmed': 'Подтверждено',
-                'cancelled': 'Отменено'
-            }[s] || s;
+                'cancelled': 'Отменено',
+                'no_show': 'Не пришёл'
+            };
+            return texts[status] || status;
         }
         
+        // ============================================
+        // COUNTDOWN TIMERS
+        // ============================================
+        
+        function startCountdownTimers() {
+            const timers = document.querySelectorAll('.countdown-timer');
+            
+            timers.forEach(timer => {
+                updateCountdown(timer);
+            });
+            
+            setInterval(() => {
+                timers.forEach(timer => {
+                    updateCountdown(timer);
+                });
+            }, 1000);
+        }
+        
+        function updateCountdown(timer) {
+            const deadline = new Date(timer.dataset.deadline);
+            const now = new Date();
+            const diff = deadline - now;
+            
+            if (diff <= 0) {
+                timer.querySelector('.countdown-value').textContent = '00:00';
+                timer.classList.add('countdown-critical');
+                return;
+            }
+            
+            const minutes = Math.floor(diff / 60000);
+            const seconds = Math.floor((diff % 60000) / 1000);
+            
+            const timeString = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            timer.querySelector('.countdown-value').textContent = timeString;
+            
+            if (minutes < 1) {
+                timer.classList.add('countdown-critical');
+            }
+        }
+        
+        // ============================================
+        // TAB SWITCHING
+        // ============================================
+        
         function switchTab(tab) {
+            tg.HapticFeedback.selectionChanged();
+            
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             event.target.classList.add('active');
+            
             loadBookings(tab);
         }
         
-        async function confirm(id) {
+        // ============================================
+        // FILTER FUNCTIONS
+        // ============================================
+        
+        function filterByTable(tableNumber) {
+            tg.HapticFeedback.selectionChanged();
+            
+            document.querySelectorAll('.filter-chip').forEach(chip => chip.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            currentFilter.table = tableNumber;
+            applyFilters();
+            renderBookings(filteredBookings);
+        }
+        
+        function handleSearch() {
+            const searchValue = document.getElementById('searchInput').value.trim();
+            currentFilter.search = searchValue;
+            applyFilters();
+            renderBookings(filteredBookings);
+        }
+        
+        // ============================================
+        // BOOKING ACTIONS
+        // ============================================
+        
+        async function confirmBooking(id) {
+            tg.HapticFeedback.impactOccurred('medium');
+            
+            tg.showConfirm('Подтвердить это бронирование?', async (confirmed) => {
+                if (!confirmed) return;
+                
+                try {
+                    const response = await fetch(`${API_URL}/bookings/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'confirmed' })
+                    });
+                    
+                    if (response.ok) {
+                        tg.HapticFeedback.notificationOccurred('success');
+                        tg.showAlert('✅ Бронирование подтверждено!');
+                        loadBookings(currentTab);
+                    }
+                } catch (error) {
+                    tg.HapticFeedback.notificationOccurred('error');
+                    tg.showAlert('❌ Ошибка подтверждения');
+                }
+            });
+        }
+        
+        async function confirmArrival(id) {
+            tg.HapticFeedback.impactOccurred('medium');
+            
             try {
-                await fetch(`${API_URL}/bookings/${id}/confirm-arrival`, {
+                const response = await fetch(`${API_URL}/bookings/${id}/confirm-arrival`, {
                     method: 'PUT'
                 });
-                tg.showAlert('✅ Подтверждено!');
-                loadBookings(currentTab);
-            } catch (e) {
-                tg.showAlert('❌ Ошибка');
+                
+                if (response.ok) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                    tg.showAlert('✅ Приход гостя подтверждён!');
+                    loadBookings(currentTab);
+                }
+            } catch (error) {
+                tg.HapticFeedback.notificationOccurred('error');
+                tg.showAlert('❌ Ошибка подтверждения');
             }
+        }
+        
+        async function cancelBooking(id) {
+            tg.HapticFeedback.impactOccurred('medium');
+            
+            tg.showConfirm('Отменить бронирование?', async (confirmed) => {
+                if (!confirmed) return;
+                
+                try {
+                    const response = await fetch(`${API_URL}/bookings/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            status: 'cancelled',
+                            cancellation_reason: 'Отменено администратором через Mini App'
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        tg.HapticFeedback.notificationOccurred('warning');
+                        tg.showAlert('❌ Бронирование отменено');
+                        loadBookings(currentTab);
+                    }
+                } catch (error) {
+                    tg.HapticFeedback.notificationOccurred('error');
+                    tg.showAlert('❌ Ошибка отмены');
+                }
+            });
         }
         
         async function noShow(id) {
+            tg.HapticFeedback.impactOccurred('medium');
+            
             try {
-                await fetch(`${API_URL}/bookings/${id}`, {
+                const response = await fetch(`${API_URL}/bookings/${id}`, {
                     method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
                         status: 'cancelled',
-                        cancellation_reason: 'No-show'
+                        cancellation_reason: 'Гость не пришёл (no-show)'
                     })
                 });
-                tg.showAlert('⚫ No-show');
-                loadBookings(currentTab);
-            } catch (e) {
+                
+                if (response.ok) {
+                    tg.HapticFeedback.notificationOccurred('warning');
+                    tg.showAlert('⚫ Отмечено как no-show');
+                    loadBookings(currentTab);
+                }
+            } catch (error) {
+                tg.HapticFeedback.notificationOccurred('error');
                 tg.showAlert('❌ Ошибка');
             }
         }
         
-        setInterval(() => loadBookings(currentTab), 30000);
+        function viewDetails(id) {
+            tg.HapticFeedback.impactOccurred('light');
+            
+            const booking = allBookings.find(b => b.id === id);
+            if (!booking) return;
+            
+            const endTime = booking.end_time ? booking.end_time.substring(0, 5) : 'По факту';
+            const date = new Date(booking.booking_date).toLocaleDateString('ru-RU');
+            
+            const message = `
+📋 Бронь #${booking.id}
+
+📅 Дата: ${date}
+⏰ Время: ${booking.start_time.substring(0, 5)} - ${endTime}
+🪑 Стол: ${booking.table_number} (${booking.hall_name})
+👤 Клиент: ${booking.customer_name}
+📞 Телефон: ${booking.customer_phone}
+👥 Гостей: ${booking.guests_count}
+📊 Статус: ${getStatusText(booking.status)}
+            `.trim();
+            
+            tg.showAlert(message);
+        }
+        
+        // ============================================
+        // CREATE BOOKING
+        // ============================================
+        
+        function openCreateModal() {
+            tg.HapticFeedback.impactOccurred('medium');
+            
+            // Установка текущей даты
+            const now = new Date();
+            const mskOffset = 3 * 60;
+            const nowMSK = new Date(now.getTime() + mskOffset * 60 * 1000);
+            const today = nowMSK.toISOString().split('T')[0];
+            
+            document.getElementById('createDate').value = today;
+            document.getElementById('createDate').min = today;
+            
+            // Установка текущего времени + 30 минут
+            const currentHour = nowMSK.getUTCHours();
+            const currentMinute = nowMSK.getUTCMinutes();
+            const roundedMinute = Math.ceil((currentMinute + 30) / 30) * 30;
+            const nextHour = currentHour + Math.floor(roundedMinute / 60);
+            const nextMinute = roundedMinute % 60;
+            
+            document.getElementById('createStartTime').value = 
+                `${String(nextHour % 24).padStart(2, '0')}:${String(nextMinute).padStart(2, '0')}`;
+            
+            document.getElementById('createModal').classList.add('show');
+        }
+        
+        function closeCreateModal() {
+            tg.HapticFeedback.impactOccurred('light');
+            document.getElementById('createModal').classList.remove('show');
+            
+            // Очистка формы
+            document.getElementById('createName').value = '';
+            document.getElementById('createPhone').value = '';
+            document.getElementById('createTable').value = '';
+            document.getElementById('createGuests').value = '2';
+        }
+        
+        async function submitCreateBooking() {
+            tg.HapticFeedback.impactOccurred('medium');
+            
+            const name = document.getElementById('createName').value.trim();
+            const phone = document.getElementById('createPhone').value.trim();
+            const date = document.getElementById('createDate').value;
+            const startTime = document.getElementById('createStartTime').value;
+            const endTimeSelect = document.getElementById('createEndTime').value;
+            const tableId = document.getElementById('createTable').value;
+            const guests = document.getElementById('createGuests').value;
+            
+            if (!name || !phone || !date || !startTime || !tableId || !guests) {
+                tg.showAlert('❌ Заполните все обязательные поля');
+                return;
+            }
+            
+            let endTime = null;
+            if (endTimeSelect === 'auto') {
+                const [hours, minutes] = startTime.split(':');
+                const endHours = (parseInt(hours) + 2) % 24;
+                endTime = `${String(endHours).padStart(2, '0')}:${minutes}`;
+            } else {
+                endTime = 'by_fact';
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/bookings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        table_id: parseInt(tableId),
+                        customer_name: name,
+                        customer_phone: phone,
+                        booking_date: date,
+                        start_time: startTime,
+                        end_time: endTime,
+                        guests_count: parseInt(guests)
+                    })
+                });
+                
+                if (response.ok) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                    tg.showAlert('✅ Бронирование создано!');
+                    closeCreateModal();
+                    loadBookings(currentTab);
+                } else {
+                    const error = await response.json();
+                    tg.HapticFeedback.notificationOccurred('error');
+                    tg.showAlert(`❌ Ошибка: ${error.error || 'Не удалось создать бронь'}`);
+                }
+            } catch (error) {
+                tg.HapticFeedback.notificationOccurred('error');
+                tg.showAlert('❌ Ошибка создания бронирования');
+            }
+        }
+        
+        // ============================================
+        // REFRESH DATA
+        // ============================================
+        
+        function refreshData() {
+            tg.HapticFeedback.impactOccurred('light');
+            loadBookings(currentTab);
+        }
     </script>
 </body>
 </html>
