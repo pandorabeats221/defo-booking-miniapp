@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Выбор стола - Defo Booking</title>
+    <title>Выбор стола - DEFO</title>
+    
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
     <style>
         * {
@@ -13,108 +15,94 @@
         }
         
         body {
-            overflow: hidden;
             background: #0A0A0A;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden;
         }
         
-        #tilda-frame {
-            width: 100vw;
+        #tildaFrame {
+            width: 100%;
             height: 100vh;
             border: none;
             display: block;
         }
         
-        #loading {
+        /* Loader */
+        .loader {
             position: fixed;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
+            width: 100%;
+            height: 100%;
             background: #0A0A0A;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: #D4AF37;
+            gap: 20px;
             z-index: 9999;
         }
         
-        #loading.hidden {
+        .loader.hidden {
             display: none;
         }
         
         .spinner {
             width: 50px;
             height: 50px;
-            border: 3px solid #1F1F1F;
+            border: 3px solid #222;
             border-top-color: #D4AF37;
             border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        .loader-text {
+            color: #D4AF37;
+            font-size: 16px;
+            font-weight: 600;
         }
         
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
         
-        .loading-text {
-            font-size: 16px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-        
-        .loading-subtitle {
-            font-size: 13px;
-            color: #888;
-            margin-top: 8px;
-        }
-        
-        #error {
+        /* Error */
+        .error {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: #0A0A0A;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1C1C1C;
+            padding: 30px;
+            border-radius: 16px;
             text-align: center;
-            z-index: 9998;
+            z-index: 10000;
+            max-width: 90%;
         }
         
-        #error.show {
-            display: flex;
-        }
-        
-        .error-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
+        .error.visible {
+            display: block;
         }
         
         .error-title {
+            color: #F44336;
             font-size: 20px;
             font-weight: 700;
-            color: #F44336;
             margin-bottom: 10px;
         }
         
-        .error-text {
-            font-size: 14px;
+        .error-message {
             color: #888;
-            line-height: 1.6;
-            max-width: 400px;
+            font-size: 14px;
+            margin-bottom: 20px;
         }
         
         .error-btn {
-            margin-top: 20px;
-            padding: 12px 24px;
             background: #D4AF37;
             color: #000;
             border: none;
+            padding: 12px 24px;
             border-radius: 8px;
             font-size: 14px;
             font-weight: 700;
@@ -123,261 +111,165 @@
     </style>
 </head>
 <body>
-    <!-- Загрузочный экран -->
-    <div id="loading">
-        <div class="spinner"></div>
-        <div class="loading-text">Загрузка карты столов...</div>
-        <div class="loading-subtitle">Пожалуйста, подождите</div>
-    </div>
+
+<div class="loader" id="loader">
+    <div class="spinner"></div>
+    <div class="loader-text">Загрузка карты столов...</div>
+</div>
+
+<div class="error" id="error">
+    <div class="error-title">⚠️ Ошибка</div>
+    <div class="error-message" id="errorMessage"></div>
+    <button class="error-btn" onclick="location.reload()">Попробовать снова</button>
+</div>
+
+<iframe id="tildaFrame"></iframe>
+
+<script>
+(function() {
+    const tg = window.Telegram.WebApp;
     
-    <!-- Экран ошибки -->
-    <div id="error">
-        <div class="error-icon">⚠️</div>
-        <div class="error-title">Ошибка загрузки</div>
-        <div class="error-text" id="error-message">
-            Не удалось загрузить карту столов
-        </div>
-        <button class="error-btn" onclick="location.reload()">Попробовать снова</button>
-    </div>
+    // Инициализация Telegram Mini App
+    tg.ready();
+    tg.expand();
+    tg.enableClosingConfirmation();
     
-    <!-- Iframe с Tilda -->
-    <iframe 
-        id="tilda-frame" 
-        src="" 
-        allow="fullscreen"
-    ></iframe>
+    console.log('🚀 Table Selector загружен');
+    console.log('📱 Telegram WebApp:', tg);
     
-    <script>
-        // ============================================
-        // TELEGRAM WEB APP (БЕЗОПАСНАЯ ИНИЦИАЛИЗАЦИЯ)
-        // ============================================
+    // Получаем параметры из URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const date = urlParams.get('date');
+    const start_time = urlParams.get('start_time');
+    const end_time = urlParams.get('end_time');
+    const guests = urlParams.get('guests');
+    
+    console.log('📋 Параметры бронирования:', { date, start_time, end_time, guests });
+    
+    // Проверка обязательных параметров
+    if (!date || !start_time || !end_time || !guests) {
+        showError('Отсутствуют параметры бронирования');
+        return;
+    }
+    
+    // Формируем URL для Tilda через proxy
+    const proxyUrl = `https://defo-booking-api.onrender.com/api/tilda-proxy?` +
+        `date=${date}&start_time=${start_time}&end_time=${end_time}&guests=${guests}`;
+    
+    console.log('🔗 Загрузка Tilda через proxy:', proxyUrl);
+    
+    const iframe = document.getElementById('tildaFrame');
+    const loader = document.getElementById('loader');
+    
+    // Обработчик загрузки iframe
+    iframe.onload = function() {
+        console.log('✅ Tilda iframe загружен');
+        setTimeout(() => {
+            loader.classList.add('hidden');
+        }, 1000);
+    };
+    
+    iframe.onerror = function() {
+        console.error('❌ Ошибка загрузки Tilda iframe');
+        showError('Не удалось загрузить карту столов');
+    };
+    
+    // Загружаем Tilda страницу
+    iframe.src = proxyUrl;
+    
+    // ============================================
+    // ОБРАБОТЧИК POSTMESSAGE ОТ TILDA
+    // ============================================
+    
+    window.addEventListener('message', function(event) {
+        console.log('📨 Получено сообщение:', event);
+        console.log('   Origin:', event.origin);
+        console.log('   Data:', event.data);
         
-        let tg = null;
-        
-        // Пытаемся загрузить Telegram Web App SDK
-        function loadTelegramSDK() {
-            return new Promise((resolve, reject) => {
-                // Проверяем доступность через CDN
-                const script = document.createElement('script');
-                script.src = 'https://telegram.org/js/telegram-web-app.js';
-                script.async = true;
-                
-                script.onload = () => {
-                    console.log('✅ Telegram SDK загружен');
-                    
-                    if (window.Telegram && window.Telegram.WebApp) {
-                        tg = window.Telegram.WebApp;
-                        tg.ready();
-                        tg.expand();
-                        resolve(tg);
-                    } else {
-                        reject(new Error('Telegram WebApp недоступен'));
-                    }
-                };
-                
-                script.onerror = () => {
-                    console.warn('⚠️ Не удалось загрузить Telegram SDK (работа в тестовом режиме)');
-                    resolve(null);
-                };
-                
-                document.head.appendChild(script);
-                
-                // Таймаут 5 секунд
-                setTimeout(() => {
-                    if (!tg) {
-                        console.warn('⚠️ Таймаут загрузки Telegram SDK');
-                        resolve(null);
-                    }
-                }, 5000);
-            });
+        // Проверяем источник (Tilda через proxy)
+        if (event.origin !== 'https://defo-booking-api.onrender.com') {
+            console.warn('⚠️ Неизвестный источник сообщения:', event.origin);
+            return;
         }
         
-        // ============================================
-        // ИНИЦИАЛИЗАЦИЯ
-        // ============================================
+        const data = event.data;
         
-        async function init() {
-            console.log('🚀 Инициализация Mini App...');
+        // Проверяем тип сообщения
+        if (data && data.type === 'TABLE_SELECTED') {
+            console.log('✅ Стол выбран!', data);
+            console.log('   Стол:', data.table);
+            console.log('   Бронирование:', data.booking);
             
-            // Загружаем Telegram SDK
-            tg = await loadTelegramSDK();
-            
-            if (tg) {
-                console.log('📱 Platform:', tg.platform);
-                console.log('📱 Version:', tg.version);
-                console.log('👤 User:', tg.initDataUnsafe?.user);
-                
-                // Устанавливаем цвета темы
-                tg.setHeaderColor('#0A0A0A');
-                tg.setBackgroundColor('#0A0A0A');
-            } else {
-                console.log('💻 Режим: Тестовый (вне Telegram)');
-            }
-            
-            // ============================================
-            // ПОЛУЧЕНИЕ ПАРАМЕТРОВ ИЗ URL
-            // ============================================
-            
-            const urlParams = new URLSearchParams(window.location.search);
-            
-            const bookingParams = {
-                date: urlParams.get('date'),
-                start_time: urlParams.get('start_time'),
-                end_time: urlParams.get('end_time'),
-                guests: urlParams.get('guests')
-            };
-            
-            console.log('📋 Параметры бронирования:', bookingParams);
-            
-            // Валидация параметров
-            if (!bookingParams.date || !bookingParams.start_time || !bookingParams.end_time || !bookingParams.guests) {
-                console.error('❌ Отсутствуют обязательные параметры!');
-                showError('Отсутствуют параметры бронирования. Пожалуйста, вернитесь в бот и начните заново.');
-                return;
-            }
-            
-            // ============================================
-            // ФОРМИРОВАНИЕ URL ДЛЯ TILDA
-            // ============================================
-            
-            const tildaUrl = 'https://defo-booking-api.onrender.com/api/tilda-proxy?' + 
-                new URLSearchParams(bookingParams).toString();
-            
-            console.log('🔗 URL Tilda:', tildaUrl);
-            
-            // ============================================
-            // ЗАГРУЗКА IFRAME
-            // ============================================
-            
-            const iframe = document.getElementById('tilda-frame');
-            const loading = document.getElementById('loading');
-            
-            // Таймаут загрузки (15 секунд)
-            const loadTimeout = setTimeout(() => {
-                console.error('❌ Таймаут загрузки Tilda');
-                showError('Превышено время ожидания загрузки карты столов. Проверьте интернет-соединение.');
-            }, 15000);
-            
-            // Обработка загрузки iframe
-            iframe.onload = () => {
-                console.log('✅ Tilda загружена');
-                clearTimeout(loadTimeout);
-                
-                setTimeout(() => {
-                    loading.classList.add('hidden');
-                }, 500);
-            };
-            
-            // Обработка ошибки загрузки
-            iframe.onerror = (error) => {
-                console.error('❌ Ошибка загрузки Tilda:', error);
-                clearTimeout(loadTimeout);
-                showError('Не удалось загрузить карту столов. Проверьте интернет-соединение.');
-            };
-            
-            // Загружаем Tilda
-            iframe.src = tildaUrl;
-            
-            // ============================================
-            // ОБРАБОТКА СООБЩЕНИЙ ОТ TILDA
-            // ============================================
-            
-            window.addEventListener('message', (event) => {
-                console.log('📨 Получено сообщение от Tilda');
-                console.log('📨 Origin:', event.origin);
-                console.log('📨 Data:', event.data);
-                
-                // Проверяем источник (безопасность)
-                if (!event.origin.includes('tilda.ws') && !event.origin.includes('tilda.cc')) {
-                    console.warn('⚠️ Неизвестный источник сообщения:', event.origin);
-                    return;
-                }
-                
-                // Проверяем структуру данных
-                if (!event.data || typeof event.data !== 'object') {
-                    console.warn('⚠️ Неверный формат данных:', event.data);
-                    return;
-                }
-                
-                // Обрабатываем выбор стола
-                if (event.data.type === 'TABLE_SELECTED') {
-                    console.log('✅ Стол выбран:', event.data);
-                    
-                    // Валидация данных
-                    if (!event.data.table || !event.data.table.table_id) {
-                        console.error('❌ Неверные данные стола:', event.data);
-                        
-                        if (tg) {
-                            tg.showAlert('Ошибка: неверные данные стола');
-                        } else {
-                            alert('Ошибка: неверные данные стола');
-                        }
-                        return;
-                    }
-                    
-                    // Показываем feedback
-                    if (tg && tg.HapticFeedback) {
-                        tg.HapticFeedback.notificationOccurred('success');
-                    }
-                    
-                    // Отправляем данные в бот (если в Telegram)
-                    if (tg && tg.sendData) {
-                        console.log('📤 Отправка данных в бот...');
-                        
-                        try {
-                            const dataString = JSON.stringify(event.data);
-                            console.log('📤 Data string:', dataString);
-                            console.log('📤 Data length:', dataString.length);
-                            
-                            tg.sendData(dataString);
-                            
-                            console.log('✅ Данные отправлены в бот');
-                            
-                            // Закрываем Mini App через 500ms
-                            setTimeout(() => {
-                                console.log('🔚 Закрытие Mini App...');
-                                tg.close();
-                            }, 500);
-                            
-                        } catch (error) {
-                            console.error('❌ Ошибка отправки данных:', error);
-                            tg.showAlert('Ошибка отправки данных. Попробуйте ещё раз.');
-                        }
-                    } else {
-                        // Тестовый режим (вне Telegram)
-                        console.log('💻 Тестовый режим: данные не отправлены в бот');
-                        alert(`✅ Стол ${event.data.table.table_number} выбран!\n\nВ Telegram это окно закроется автоматически.`);
-                    }
+            // Сохраняем данные в CloudStorage
+            tg.CloudStorage.setItem('selected_table', JSON.stringify(data.table), (error, success) => {
+                if (error) {
+                    console.error('❌ Ошибка сохранения стола:', error);
                 } else {
-                    console.log('ℹ️ Получено сообщение другого типа:', event.data.type);
+                    console.log('✅ Стол сохранён в CloudStorage');
+                }
+            });
+            
+            tg.CloudStorage.setItem('booking_params', JSON.stringify(data.booking), (error, success) => {
+                if (error) {
+                    console.error('❌ Ошибка сохранения параметров:', error);
+                } else {
+                    console.log('✅ Параметры сохранены в CloudStorage');
+                }
+            });
+            
+            // Отправляем событие в Telegram
+            tg.sendData(JSON.stringify({
+                action: 'table_selected',
+                table: data.table,
+                booking: data.booking
+            }));
+            
+            // Показываем уведомление
+            tg.showPopup({
+                title: '✅ Стол выбран',
+                message: `Стол ${data.table.table_number} успешно выбран!`,
+                buttons: [{ id: 'ok', type: 'ok', text: 'OK' }]
+            }, (buttonId) => {
+                if (buttonId === 'ok') {
+                    // Переходим на следующий экран (форма данных гостя)
+                    console.log('🔄 Переход на форму данных гостя...');
+                    
+                    // ВАРИАНТ 1: Если у вас есть отдельная страница guest-form.html
+                    window.location.href = `/guest-form.html?table_id=${data.table.table_id}&table_number=${data.table.table_number}`;
+                    
+                    // ВАРИАНТ 2: Если переход через bot
+                    // tg.close();
                 }
             });
         }
+    });
+    
+    // ============================================
+    // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+    // ============================================
+    
+    function showError(message) {
+        console.error('❌ Ошибка:', message);
         
-        // ============================================
-        // ОБРАБОТКА ОШИБОК
-        // ============================================
+        document.getElementById('errorMessage').textContent = message;
+        document.getElementById('error').classList.add('visible');
+        document.getElementById('loader').classList.add('hidden');
         
-        function showError(message) {
-            document.getElementById('error-message').textContent = message;
-            document.getElementById('error').classList.add('show');
-            document.getElementById('loading').classList.add('hidden');
-            
-            if (tg && tg.HapticFeedback) {
-                tg.HapticFeedback.notificationOccurred('error');
-            }
-        }
-        
-        window.addEventListener('error', (e) => {
-            console.error('❌ Глобальная ошибка:', e);
-        });
-        
-        // ============================================
-        // ЗАПУСК
-        // ============================================
-        
-        init();
-        
-    </script>
+        tg.showAlert(message);
+    }
+    
+    // Обработчик кнопки "Назад"
+    tg.BackButton.onClick(() => {
+        console.log('🔙 Нажата кнопка Назад');
+        window.history.back();
+    });
+    
+    tg.BackButton.show();
+    
+    console.log('✅ Table Selector инициализирован');
+    
+})();
+</script>
+
 </body>
 </html>
