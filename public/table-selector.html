@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Выбор стола - DEFO</title>
     
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    
     <style>
         * {
             margin: 0;
@@ -125,17 +123,61 @@
 
 <iframe id="tildaFrame"></iframe>
 
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
 <script>
 (function() {
-    const tg = window.Telegram.WebApp;
+    // Безопасная инициализация Telegram WebApp
+    let tg = null;
     
-    // Инициализация Telegram Mini App
-    tg.ready();
-    tg.expand();
-    tg.enableClosingConfirmation();
+    // Проверяем доступность Telegram WebApp
+    if (window.Telegram && window.Telegram.WebApp) {
+        tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        tg.enableClosingConfirmation();
+        console.log('✅ Telegram WebApp инициализирован');
+    } else {
+        console.warn('⚠️ Telegram WebApp недоступен (тестовый режим)');
+        // Создаём mock объект для тестирования
+        tg = {
+            ready: () => {},
+            expand: () => {},
+            enableClosingConfirmation: () => {},
+            CloudStorage: {
+                setItem: (key, value, callback) => {
+                    console.log('💾 CloudStorage.setItem:', key, value);
+                    localStorage.setItem(key, value);
+                    if (callback) callback(null, true);
+                }
+            },
+            sendData: (data) => {
+                console.log('📤 sendData:', data);
+            },
+            showPopup: (params, callback) => {
+                console.log('💬 showPopup:', params);
+                alert(`${params.title}\n\n${params.message}`);
+                if (callback) callback('ok');
+            },
+            showAlert: (message) => {
+                console.log('⚠️ showAlert:', message);
+                alert(message);
+            },
+            BackButton: {
+                show: () => console.log('👈 BackButton.show()'),
+                onClick: (callback) => {
+                    console.log('👈 BackButton.onClick registered');
+                    window.backButtonCallback = callback;
+                }
+            },
+            close: () => {
+                console.log('🚪 WebApp.close()');
+                window.close();
+            }
+        };
+    }
     
     console.log('🚀 Table Selector загружен');
-    console.log('📱 Telegram WebApp:', tg);
     
     // Получаем параметры из URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -187,7 +229,13 @@
         console.log('   Data:', event.data);
         
         // Проверяем источник (Tilda через proxy)
-        if (event.origin !== 'https://defo-booking-api.onrender.com') {
+        const allowedOrigins = [
+            'https://defo-booking-api.onrender.com',
+            'http://defohome.tilda.ws',
+            'https://defohome.tilda.ws'
+        ];
+        
+        if (!allowedOrigins.includes(event.origin)) {
             console.warn('⚠️ Неизвестный источник сообщения:', event.origin);
             return;
         }
@@ -234,11 +282,11 @@
                     // Переходим на следующий экран (форма данных гостя)
                     console.log('🔄 Переход на форму данных гостя...');
                     
-                    // ВАРИАНТ 1: Если у вас есть отдельная страница guest-form.html
-                    window.location.href = `/guest-form.html?table_id=${data.table.table_id}&table_number=${data.table.table_number}`;
+                    // ВРЕМЕННО: просто показываем alert
+                    alert(`Стол ${data.table.table_number} выбран!\n\nДанные сохранены. Следующий шаг: форма данных гостя.`);
                     
-                    // ВАРИАНТ 2: Если переход через bot
-                    // tg.close();
+                    // TODO: Раскомментируй когда создашь guest-form.html
+                    // window.location.href = `/guest-form.html?table_id=${data.table.table_id}&table_number=${data.table.table_number}`;
                 }
             });
         }
