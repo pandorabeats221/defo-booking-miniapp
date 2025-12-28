@@ -168,9 +168,46 @@
             color: #FFF;
             margin-bottom: 8px;
         }
+        
+        .debug-info {
+            position: fixed;
+            bottom: 80px;
+            left: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 11px;
+            color: #888;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+            z-index: 99;
+        }
+        
+        .debug-info.show {
+            display: block;
+        }
+        
+        .debug-toggle {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #333;
+            color: #D4AF37;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            z-index: 100;
+        }
     </style>
 </head>
 <body>
+
+<button class="debug-toggle" onclick="toggleDebug()">🐛 Debug</button>
 
 <div class="header">
     <h1>🕐 Выбери время</h1>
@@ -190,45 +227,99 @@
     </button>
 </div>
 
+<div class="debug-info" id="debugInfo"></div>
+
 <script>
 (function() {
-    // Инициализация Telegram WebApp
+    // ============================================
+    // ДЕБАГ-СИСТЕМА
+    // ============================================
+    
+    const debugLogs = [];
+    
+    function addDebugLog(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString('ru-RU');
+        const emoji = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+        const log = `${timestamp} ${emoji} ${message}`;
+        
+        debugLogs.push(log);
+        console.log(log);
+        
+        const debugDiv = document.getElementById('debugInfo');
+        if (debugDiv) {
+            debugDiv.innerHTML = debugLogs.slice(-20).reverse().join('<br>');
+        }
+    }
+    
+    window.toggleDebug = function() {
+        const debugDiv = document.getElementById('debugInfo');
+        debugDiv.classList.toggle('show');
+    };
+    
+    // ============================================
+    // ИНИЦИАЛИЗАЦИЯ TELEGRAM WEBAPP
+    // ============================================
+    
+    addDebugLog('🚀 Time Picker запущен');
+    
     let tg = null;
     
     if (window.Telegram && window.Telegram.WebApp) {
         tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
-        console.log('✅ Telegram WebApp инициализирован');
+        
+        addDebugLog('✅ Telegram WebApp инициализирован', 'success');
+        addDebugLog(`🔍 Версия WebApp: ${tg.version}`);
+        addDebugLog(`🔍 Платформа: ${tg.platform}`);
+        addDebugLog(`🔍 sendData доступен: ${typeof tg.sendData}`);
+        
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            addDebugLog(`👤 Пользователь: ${tg.initDataUnsafe.user.first_name} (ID: ${tg.initDataUnsafe.user.id})`);
+        }
+        
+        // Проверка поддержки sendData
+        if (typeof tg.sendData !== 'function') {
+            addDebugLog('❌ sendData() не поддерживается!', 'error');
+            showError('Ваша версия Telegram не поддерживает отправку данных. Обновите Telegram до последней версии.');
+            return;
+        }
+        
     } else {
-        console.warn('⚠️ Telegram WebApp недоступен (тестовый режим)');
+        addDebugLog('❌ Telegram WebApp полностью недоступен!', 'error');
+        
+        // Заглушка для теста в браузере
         tg = {
-            ready: () => {},
-            expand: () => {},
+            ready: () => { addDebugLog('🧪 TEST: ready()'); },
+            expand: () => { addDebugLog('🧪 TEST: expand()'); },
             sendData: (data) => {
-                console.log('📤 sendData:', data);
-                alert('Данные отправлены: ' + data);
+                addDebugLog('🧪 TEST MODE: sendData вызван', 'warning');
+                addDebugLog(`📦 Данные: ${data}`);
+                alert('ТЕСТОВЫЙ РЕЖИМ\n\nОткройте через Telegram бота!\n\nДанные: ' + data);
             },
             close: () => {
-                console.log('🚪 WebApp.close()');
+                addDebugLog('🧪 TEST: close()');
                 window.close();
-            }
+            },
+            version: 'TEST',
+            platform: 'unknown'
         };
     }
     
-    console.log('🚀 Time Picker загружен');
+    // ============================================
+    // ПОЛУЧЕНИЕ ПАРАМЕТРОВ
+    // ============================================
     
-    // Получаем параметры из URL
     const urlParams = new URLSearchParams(window.location.search);
     const date = urlParams.get('date');
     const guests = urlParams.get('guests');
     
-    console.log('📅 Дата:', date);
-    console.log('👥 Гостей:', guests);
+    addDebugLog(`📅 Параметры: date=${date}, guests=${guests}`);
     
     // Проверка параметров
     if (!date || !guests) {
-        showError('Отсутствуют параметры бронирования');
+        addDebugLog('❌ Отсутствуют параметры date или guests', 'error');
+        showError('Отсутствуют параметры бронирования (date/guests)');
         return;
     }
     
@@ -239,26 +330,36 @@
         month: 'long',
         weekday: 'short'
     });
+    
     document.getElementById('dateInfo').textContent = `${dateStr} • ${guests} гост${getGuestWord(guests)}`;
+    
+    addDebugLog(`📅 Отображение: ${dateStr}, ${guests} гостей`);
     
     let selectedTime = null;
     
-    // Загружаем доступные слоты
+    // ============================================
+    // ЗАГРУЗКА ДОСТУПНЫХ СЛОТОВ
+    // ============================================
+    
     async function loadTimeSlots() {
         try {
             const apiUrl = 'https://defo-booking-api.onrender.com/api/tables/available-times';
             const url = `${apiUrl}?date=${date}&guests=${guests}`;
             
-            console.log('🔗 Запрос:', url);
+            addDebugLog(`🔗 Запрос к API: ${url}`);
             
             const response = await fetch(url);
+            
+            addDebugLog(`📡 Ответ API: HTTP ${response.status} ${response.statusText}`);
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
             const data = await response.json();
-            console.log('⏰ Доступные слоты:', data);
+            
+            addDebugLog(`✅ Получены данные: ${data.slots ? data.slots.length : 0} слотов`, 'success');
+            addDebugLog(`⏰ Слоты: ${data.slots ? data.slots.join(', ') : 'нет'}`);
             
             const content = document.getElementById('content');
             content.innerHTML = '';
@@ -278,6 +379,8 @@
                 content.appendChild(container);
                 document.getElementById('bottomButton').style.display = 'block';
                 
+                addDebugLog(`✅ Отображено ${data.slots.length} слотов`, 'success');
+                
             } else {
                 content.innerHTML = `
                     <div class="no-slots">
@@ -286,15 +389,24 @@
                         <p>На выбранную дату нет свободных столов для ${guests} ${getGuestWord(guests)}.</p>
                     </div>
                 `;
+                
+                addDebugLog('⚠️ Нет доступных слотов', 'warning');
             }
             
         } catch (error) {
+            addDebugLog(`❌ Ошибка загрузки: ${error.message}`, 'error');
             console.error('❌ Ошибка загрузки слотов:', error);
             showError(`Ошибка загрузки: ${error.message}`);
         }
     }
     
+    // ============================================
+    // ВЫБОР ВРЕМЕНИ
+    // ============================================
+    
     function selectTime(time, element) {
+        addDebugLog(`👆 Клик на время: ${time}`);
+        
         // Убираем выделение со всех
         document.querySelectorAll('.time-slot').forEach(el => {
             el.classList.remove('selected');
@@ -309,28 +421,76 @@
         btn.disabled = false;
         btn.textContent = `✅ Выбрать ${time}`;
         
-        console.log('✅ Время выбрано:', time);
+        addDebugLog(`✅ Время выбрано: ${time}`, 'success');
     }
     
-    // Кнопка "Выбрать время"
+    // ============================================
+    // ОТПРАВКА ДАННЫХ В БОТА
+    // ============================================
+    
     document.getElementById('selectBtn').onclick = function() {
-        if (!selectedTime) return;
+        addDebugLog('🖱️ Клик на кнопку "Выбрать время"');
         
-        console.log('📤 Отправка времени в бота:', selectedTime);
+        if (!selectedTime) {
+            addDebugLog('❌ Время не выбрано!', 'error');
+            alert('Сначала выбери время!');
+            return;
+        }
         
-        // Отправляем данные в бота
-        tg.sendData(JSON.stringify({
+        addDebugLog(`📤 Подготовка данных для отправки: ${selectedTime}`);
+        
+        const dataToSend = {
             action: 'time_selected',
             time: selectedTime,
             date: date,
-            guests: guests
-        }));
+            guests: parseInt(guests)
+        };
         
-        // Закрываем Mini App
-        setTimeout(() => {
-            tg.close();
-        }, 300);
+        addDebugLog(`📦 Объект данных: ${JSON.stringify(dataToSend)}`);
+        
+        const jsonString = JSON.stringify(dataToSend);
+        addDebugLog(`📋 JSON строка (${jsonString.length} символов): ${jsonString}`);
+        
+        // Проверка доступности Telegram WebApp
+        if (typeof tg === 'undefined' || !tg) {
+            addDebugLog('❌ Telegram WebApp не инициализирован!', 'error');
+            alert('Ошибка: Telegram WebApp недоступен');
+            return;
+        }
+        
+        if (typeof tg.sendData !== 'function') {
+            addDebugLog('❌ tg.sendData не является функцией!', 'error');
+            alert('Ошибка: sendData() недоступен');
+            return;
+        }
+        
+        addDebugLog('✅ Telegram WebApp готов к отправке', 'success');
+        
+        try {
+            addDebugLog('📡 Вызов tg.sendData()...');
+            
+            tg.sendData(jsonString);
+            
+            addDebugLog('✅ tg.sendData() выполнен успешно!', 'success');
+            addDebugLog('⏳ Ожидание 500ms перед закрытием...');
+            
+            // Закрываем Mini App через 500ms
+            setTimeout(() => {
+                addDebugLog('🚪 Закрытие Mini App...');
+                tg.close();
+                addDebugLog('✅ tg.close() выполнен', 'success');
+            }, 500);
+            
+        } catch (error) {
+            addDebugLog(`❌ Ошибка при отправке: ${error.message}`, 'error');
+            console.error('❌ Ошибка отправки:', error);
+            alert('Ошибка отправки данных:\n' + error.message);
+        }
     };
+    
+    // ============================================
+    // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+    // ============================================
     
     function showError(message) {
         const content = document.getElementById('content');
@@ -349,7 +509,11 @@
         return 'ей';
     }
     
-    // Загружаем слоты
+    // ============================================
+    // ЗАПУСК
+    // ============================================
+    
+    addDebugLog('🔄 Начинаю загрузку слотов...');
     loadTimeSlots();
     
 })();
